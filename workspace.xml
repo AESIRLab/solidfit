@@ -57,7 +57,7 @@
     "cf.first.check.clang-format": "false",
     "cidr.known.project.marker": "true",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/minec/AndroidStudioProjects/SolidFit",
+    "last_opened_file_path": "C:/Users/minec/AndroidStudioProjects/solidfit",
     "studio.upgrade.do.not.show.again": "true"
   },
   "keyToStringList": {
@@ -68,7 +68,7 @@
 }]]></component>
   <component name="RunManager">
     <configuration name="app" type="AndroidRunConfigurationType" factoryName="Android App">
-      <module name="SolidFit.app.main" />
+      <module name="solidfit.app.main" />
       <option name="DEPLOY" value="true" />
       <option name="DEPLOY_APK_FROM_BUNDLE" value="false" />
       <option name="DEPLOY_AS_INSTANT" value="false" />

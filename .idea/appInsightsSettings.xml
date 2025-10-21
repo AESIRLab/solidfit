@@ -9,7 +9,7 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="com.example.SolidFit" />
+                  <option name="appId" value="com.example.solidfit" />
                   <option name="mobileSdkAppId" value="1:968542775450:android:878a057746734d7cb75723" />
                   <option name="projectId" value="workoutsolidnoti" />
                   <option name="projectNumber" value="968542775450" />

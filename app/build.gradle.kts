@@ -5,7 +5,8 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.google.gms.google.services)
 
-    id("com.google.devtools.ksp") version "2.0.21-1.0.25"
+    alias(libs.plugins.ksp)
+//    id("com.google.devtools.ksp") version "2.0.21-1.0.25"
     alias(libs.plugins.compose.compiler)
 }
 
@@ -17,17 +18,17 @@ buildscript {
 }
 
 android {
-    namespace = "com.example.SolidFit"
+    namespace = "com.example.solidfit"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.SolidFit"
+        applicationId = "com.example.solidfit"
         minSdk = 30
         targetSdk = 35
         versionCode = 1
         versionName = "2.0.10"
         compileSdkPreview = "VanillaIceCream"
-        manifestPlaceholders["appAuthRedirectScheme"] = "com.example.SolidFit"
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.example.solidfit"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -84,7 +85,7 @@ tasks.named("preBuild") {
     dependsOn(deleteFolder)
 }
 
-val version = "0.0.61-stable"
+val version = "0.0.62-stable"
 dependencies {
 
     // jwt creation
