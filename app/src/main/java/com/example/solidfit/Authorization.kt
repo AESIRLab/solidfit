@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,7 +38,8 @@ enum class SolidAuthFlowScreen {
     AuthCompleteScreen,
     StartAuthScreen,
     HeartRateMonitor,
-    WeightMonitor
+    WeightMonitor,
+    SettingsScreen,
 }
 
 
@@ -50,7 +52,7 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
     )
     data object HeartMonitor : BottomNavItem(
         route = SolidAuthFlowScreen.HeartRateMonitor.name,
-        title = "Heart Rate Monitor",
+        title = "Heart Rate",
         icon = Icons.Default.Favorite
     )
     data object WeightMonitor: BottomNavItem(
@@ -58,6 +60,12 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
         title = "Weight Monitor",
         icon = Icons.Default.Person
     )
+    data object Settings: BottomNavItem(
+        route = SolidAuthFlowScreen.SettingsScreen.name,
+        title = "Settings",
+        icon = Icons.Default.Settings
+    )
+
 }
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "NewApi")
@@ -110,7 +118,10 @@ fun Authentication(
                 deepLinks = listOf(navDeepLink { uriPattern = "app://www.solid-oidc.com/callback"})
             ) {
                 AuthCompleteScreen(tokenStore = tokenStore) {
-                    UpdateWorkouts(healthConnectManager = healthConnectManager)
+                    UpdateWorkouts(
+                        healthConnectManager = healthConnectManager,
+                        authNavController = navController
+                    )
                 }
             }
         }

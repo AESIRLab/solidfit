@@ -17,6 +17,37 @@ import java.security.cert.X509Certificate
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
+import com.nimbusds.jose.JOSEObjectType
+import com.nimbusds.jose.JWSAlgorithm
+import com.nimbusds.jose.JWSHeader
+import com.nimbusds.jose.crypto.ECDSASigner
+import com.nimbusds.jose.jwk.ECKey
+import com.nimbusds.jwt.JWTClaimsSet
+import com.nimbusds.jose.util.Base64URL
+import java.security.MessageDigest
+import java.util.Date
+import java.util.UUID
+
+
+fun buildResourceDPoP(method: String, url: String, accessToken: String, signerJwk: String): String {
+    val ec = ECKey.parse(signerJwk)
+    val signer = ECDSASigner(ec.toECPrivateKey())
+    val header = JWSHeader.Builder(JWSAlgorithm.ES256)
+        .type(JOSEObjectType("dpop+jwt"))
+        .jwk(ec.toPublicJWK())
+        .build()
+    val ath = Base64URL.encode(MessageDigest.getInstance("SHA-256").digest(accessToken.toByteArray())).toString()
+    val claims = JWTClaimsSet.Builder()
+        .jwtID(UUID.randomUUID().toString())
+        .issueTime(Date())
+        .claim("htu", url)
+        .claim("htm", method.uppercase())
+        .claim("ath", ath)
+        .build()
+    val jwt = SignedJWT(header, claims)
+    jwt.sign(signer)
+    return jwt.serialize()
+}
 
 suspend fun okHttpRequest(url: String): Response = withContext(Dispatchers.IO) {
     val client = getUnsafeOkHttpClient()

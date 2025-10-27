@@ -16,11 +16,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -28,8 +32,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import com.example.solidfit.WorkoutItemViewModel
+import com.example.solidfit.buildResourceDPoP
 import com.example.solidfit.model.WorkoutItem
+import kotlinx.coroutines.flow.firstOrNull
+import org.skCompiler.generatedModel.AuthTokenStore
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -37,7 +47,8 @@ import java.util.Locale
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun WorkoutCard(
-    workout: WorkoutItem
+    workout: WorkoutItem,
+    viewModel: WorkoutItemViewModel
 ) {
     Box (
         modifier = Modifier
@@ -52,19 +63,34 @@ fun WorkoutCard(
         ){
             // IMAGE
             if (workout.mediaUri.isNotBlank()) {
-                Image(
-                    painter = rememberAsyncImagePainter(model = Uri.parse(workout.mediaUri)),
-                    contentDescription = "Workout photo",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .padding(top = 16.dp)
-                        .fillMaxWidth(0.8f)
-                        .height(300.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .align(Alignment.CenterHorizontally)
-                        .border(.7.dp, Color.Black, RoundedCornerShape(8.dp))
-                )
+                val ctx = LocalContext.current
+//                val vm: WorkoutItemViewModel = viewModel(factory = WorkoutItemViewModel.Factory)
+
+                val model = remember(workout.mediaUri) {
+                    val s = workout.mediaUri
+                    when {
+                        s.isBlank() -> null
+                        s.startsWith("content", true) -> Uri.parse(s) // local preview
+                        else -> viewModel.buildAuthorizedImageRequest(ctx, s) ?: s
+                    }
+                }
+
+                if (model != null) {
+                    Image(
+                        painter = rememberAsyncImagePainter(model = model),
+                        contentDescription = "Workout photo",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .padding(top = 16.dp)
+                            .fillMaxWidth(0.8f)
+                            .height(300.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .align(Alignment.CenterHorizontally)
+                            .border(.7.dp, Color.Black, RoundedCornerShape(8.dp))
+                    )
+                }
             }
+
 
             // NAME
             Text(

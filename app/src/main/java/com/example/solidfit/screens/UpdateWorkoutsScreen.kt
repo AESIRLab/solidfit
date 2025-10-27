@@ -73,6 +73,11 @@ import org.skCompiler.generatedModel.AuthTokenStore
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.Alignment
+import androidx.navigation.NavHostController
 
 @RequiresApi(Build.VERSION_CODES.S)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +85,7 @@ import java.util.Locale
 @Composable
 fun UpdateWorkouts(
     healthConnectManager: HealthConnectManager,
+    authNavController: NavHostController
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -97,7 +103,8 @@ fun UpdateWorkouts(
         SolidAuthFlowScreen.AddEditWorkoutScreen.name,
         SolidAuthFlowScreen.HeartRateMonitor.name,
         SolidAuthFlowScreen.WeightMonitor.name,
-        SolidAuthFlowScreen.WorkoutCardScreen.name
+        SolidAuthFlowScreen.WorkoutCardScreen.name,
+        SolidAuthFlowScreen.SettingsScreen.name
     )
     val currentRoute = currentDestination?.route
     val showBottomBar = bottomBarScreens.any {screenRoute ->
@@ -107,45 +114,46 @@ fun UpdateWorkouts(
         BottomNavItem.WorkoutList,
         BottomNavItem.HeartMonitor,
         BottomNavItem.WeightMonitor,
+        BottomNavItem.Settings,
     )
 
     LaunchedEffect(Unit) {
         coroutineScope.launch {
             withContext(Dispatchers.IO) {
-                viewModel.fetchRemoteList()
                 val webId = store.getWebId().first()
+                val accessToken = store.getAccessToken().first()
+                val signingJwk = store.getSigner().first()
+                val expirationTime = 2301220800000
+                viewModel.setRemoteRepositoryData(
+                    accessToken = accessToken,
+                    signingJwk = signingJwk,
+                    webId = webId,
+                    expirationTime = expirationTime
+                )
                 viewModel.updateWebId(webId)
-                if (!viewModel.remoteIsAvailable()) {
-                    val accessToken = store.getAccessToken().first()
-                    val signingJwk = store.getSigner().first()
-                    val expirationTime = 2301220800000
-                    viewModel.setRemoteRepositoryData(
-                        accessToken,
-                        signingJwk,
-                        webId,
-                        expirationTime
-                    )
-                } else {    }
             }
         }
     }
 
     LifecycleEventEffect(event = Lifecycle.Event.ON_RESUME) {
         runBlocking {
-            val webId = store.getWebId().first()
-            viewModel.updateWebId(webId)
+            // Check if we need to set data *first*
             if (!viewModel.remoteIsAvailable()) {
+                val webId = store.getWebId().first()
                 val accessToken = store.getAccessToken().first()
                 val signingJwk = store.getSigner().first()
                 val expirationTime = 2301220800000
-                viewModel.setRemoteRepositoryData(
+                viewModel.setRemoteRepositoryData( // This primes the cache
                     accessToken,
                     signingJwk,
                     webId,
                     expirationTime
                 )
+                viewModel.updateWebId(webId) // This syncs data
             } else {
-                viewModel.fetchRemoteList()
+                // If data is already set, just sync
+                val webId = store.getWebId().first()
+                viewModel.updateWebId(webId)
             }
         }
     }
@@ -288,21 +296,34 @@ fun UpdateWorkouts(
             composable(route = SolidAuthFlowScreen.WorkoutList.name) {
                 // Fetches all workout items from repo
                 val workouts by viewModel.allItems.collectAsState(initial = emptyList())
-                WorkoutList(
-                    workouts = workouts,
-                    onDeleteWorkout = { workout ->
-                        coroutineScope.launch {
-                            viewModel.delete(workout)
+                val isReady by viewModel.isReady.collectAsState()
+
+                if (isReady) {
+                    WorkoutList(
+                        workouts = workouts,
+                        viewModel = viewModel,
+                        onDeleteWorkout = { workout ->
+                            coroutineScope.launch {
+                                viewModel.delete(workout)
+                            }
+                        },
+                        onEditWorkout = { workout ->
+                            Log.d("Debug", workout.id)
+                            navController.navigate(route = "${SolidAuthFlowScreen.AddEditWorkoutScreen.name}/${workout.id}")
+                        },
+                        onSelectWorkout = { workout ->
+                            navController.navigate(route = "${SolidAuthFlowScreen.WorkoutCardScreen.name}/${workout.id}")
                         }
-                    },
-                    onEditWorkout = { workout ->
-                        Log.d("Debug", workout.id)
-                        navController.navigate(route = "${SolidAuthFlowScreen.AddEditWorkoutScreen.name}/${workout.id}")
-                    },
-                    onSelectWorkout = { workout ->
-                        navController.navigate(route = "${SolidAuthFlowScreen.WorkoutCardScreen.name}/${workout.id}")
+                    )
+                }
+                else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
                     }
-                )
+                }
             }
 
             // SCREEN: Workout Card
@@ -317,7 +338,8 @@ fun UpdateWorkouts(
                 val workoutState by viewModel.workoutItem.collectAsState()
                 workoutState?.let { workout ->
                     WorkoutCard(
-                        workout
+                        workout,
+                        viewModel = viewModel
                     )
                 }
             }
@@ -341,6 +363,7 @@ fun UpdateWorkouts(
                     key(workout.id) {
                         AddEditWorkoutScreen(
                             workout = workoutState,
+                            viewModel = viewModel,
                             onSaveWorkout = { _, name, duration, workoutType, notes, mediaUri ->
 
                                 val updated = workout.copy(
@@ -353,15 +376,13 @@ fun UpdateWorkouts(
                                 )
 
                                 editWorkoutCoroutineScope.launch {
-                                    try {
-                                        viewModel.update(updated)
-                                        navController.navigate(SolidAuthFlowScreen.WorkoutList.name) {
-                                            launchSingleTop = true
-                                            popUpTo(SolidAuthFlowScreen.WorkoutList.name) { inclusive = false }
-                                        }
-                                    } catch (e: Exception) {
-                                        Log.e("UpdateWorkout", "Failed to update workout", e)
+                                    viewModel.update(updated)
+
+                                    navController.navigate(SolidAuthFlowScreen.WorkoutList.name) {
+                                        launchSingleTop = true
+                                        popUpTo(SolidAuthFlowScreen.WorkoutList.name) { inclusive = false }
                                     }
+
                                     saveWorkoutLog(context)
                                 }
                             },
@@ -377,6 +398,7 @@ fun UpdateWorkouts(
             composable(route = SolidAuthFlowScreen.AddEditWorkoutScreen.name) {
                 val addWorkoutCoroutineScope = rememberCoroutineScope()
                 AddEditWorkoutScreen(
+                    viewModel = viewModel,
                     onSaveWorkout = { _, name, duration, workoutType, notes, mediaUri ->
                         addWorkoutCoroutineScope.launch {
                             viewModel.insert(
@@ -490,6 +512,10 @@ fun UpdateWorkouts(
                         permissionsLauncher.launch(values)
                     },
                 )
+            }
+
+            composable(route = SolidAuthFlowScreen.SettingsScreen.name) {
+                SettingsScreen(navController = authNavController)
             }
         }
     }

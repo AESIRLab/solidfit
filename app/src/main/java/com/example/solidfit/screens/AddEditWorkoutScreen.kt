@@ -35,12 +35,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
+import com.example.solidfit.WorkoutItemViewModel
 import com.example.solidfit.model.WorkoutItem
 
 
 @Composable
 fun AddEditWorkoutScreen(
     workout: WorkoutItem? = null,
+    viewModel: WorkoutItemViewModel,
     onSaveWorkout: (String, String, String, String, String, String) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -104,18 +106,33 @@ fun AddEditWorkoutScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        mediaUri?.let { uri ->
-            Image(
-                painter = rememberAsyncImagePainter(model = uri),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(400.dp)
-                    .clip(RoundedCornerShape(25.dp))
-                    .border(1.5.dp, Color.Gray, RoundedCornerShape(25.dp))
-                    .align(Alignment.CenterHorizontally)
-            )
+        if (workout != null) {
+            if (workout.mediaUri.isNotBlank()) {
+                val ctx = LocalContext.current
+    //                val vm: WorkoutItemViewModel = viewModel(factory = WorkoutItemViewModel.Factory)
+
+                val model = remember(workout.mediaUri) {
+                    val s = workout.mediaUri
+                    when {
+                        s.isBlank() -> null
+                        s.startsWith("content", true) -> Uri.parse(s) // local preview
+                        else -> viewModel.buildAuthorizedImageRequest(ctx, s) ?: s
+                    }
+                }
+
+                Image(
+                    painter = rememberAsyncImagePainter(model = model),
+                    contentDescription = "Workout photo",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .padding(top = 16.dp)
+                        .fillMaxWidth(0.8f)
+                        .height(300.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .align(Alignment.CenterHorizontally)
+                        .border(.7.dp, Color.Black, RoundedCornerShape(8.dp))
+                )
+            }
         }
         Row(
             modifier = Modifier

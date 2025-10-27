@@ -19,6 +19,8 @@ class WorkoutItemSolidApplication: Application() {
         lateinit var appInstance: WorkoutItemSolidApplication
         const val FILE_PATH = "WorkoutItemApplication"
         const val BASE_URI = "https://solidworkout.com"
+        const val IMAGES_DIR = "AndroidApplication/Images/SolidFit/"
+
     }
 
 //    private val database by lazy { WorkoutItemDatabase.getDatabase(appInstance, BASE_URI, FILE_PATH) }

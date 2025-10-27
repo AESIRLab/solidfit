@@ -10,6 +10,7 @@ import com.example.solidfit.model.WorkoutItem
 @Composable
 fun WorkoutList(
     workouts: List<WorkoutItem>,
+    viewModel: WorkoutItemViewModel,
     onDeleteWorkout: (WorkoutItem) -> Unit,
     onEditWorkout: (WorkoutItem) -> Unit,
     onSelectWorkout: (WorkoutItem) -> Unit
@@ -20,6 +21,7 @@ fun WorkoutList(
         items(workouts) { workout ->
             WorkoutItem(
                 workout = workout,
+                viewModel = viewModel,
                 onDelete = onDeleteWorkout,
                 onEdit = onEditWorkout,
                 onSelect = onSelectWorkout
