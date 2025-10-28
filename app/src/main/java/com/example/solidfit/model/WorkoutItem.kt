@@ -39,6 +39,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,6 +78,7 @@ data class WorkoutItem(
     var name: String = "",
     var dateCreated: Long = System.currentTimeMillis(),
     var dateModified: Long,
+    var quantity: String,
     var duration: String,
     var heartRate: Long,
     var workoutType: String = "",
@@ -114,13 +116,29 @@ fun WorkoutItem(
                 // NAME
                 Text(
                     text = workout.name,
+                    textDecoration = TextDecoration.Underline,
                     fontSize = 17.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 5.dp),
                     maxLines = 1,
                 )
 
+                // QUANTITY
+                if (workout.quantity.isNotEmpty()) {
+                    Text(
+                        text = buildAnnotatedString {
+                            // Doing this style allows for part of the text to be in the 'Medium' bold style while the data text is normal weight
+                            withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
+                                // Medium weight
+                                append("Quantity: ")
+                            }
+                            // Normal weight
+                            append(workout.quantity)
+                        }
+                    )
+                }
+
                 // DURATION
-                if (workout.duration.isNotBlank()) {
+                if (workout.duration.isNotEmpty()) {
                     Text(
                         text = buildAnnotatedString {
                             // Doing this style allows for part of the text to be in the 'Medium' bold style while the data text is normal weight
@@ -135,7 +153,7 @@ fun WorkoutItem(
                 }
 
                 // WORKOUT TYPE
-                if (workout.workoutType.isNotBlank()) {
+                if (workout.workoutType.isNotEmpty()) {
                     Text(
                         text = buildAnnotatedString {
                             // Doing this style allows for part of the text to be in the 'Medium' bold style while the data text is normal weight
@@ -180,7 +198,7 @@ fun WorkoutItem(
                 }
 
                 // NOTES
-                if (workout.notes.isNotBlank()) {
+                if (workout.notes.isNotEmpty()) {
                     Text(
                         // Truncates the notes if it's too long
                         maxLines = 3,
@@ -227,7 +245,7 @@ fun WorkoutItem(
                             contentDescription = "Workout photo",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
-                                .size(70.dp)
+                                .size(90.dp)
                                 .clip(RoundedCornerShape(8.dp))
                         ) {
                             when (painter.state) {

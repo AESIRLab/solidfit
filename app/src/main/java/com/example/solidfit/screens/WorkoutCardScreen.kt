@@ -32,8 +32,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -142,8 +144,10 @@ fun WorkoutCard(
                     }
                     withStyle(
                         style = SpanStyle(
-                            fontSize = 18.sp
+                            fontSize = 18.sp,
+                            textDecoration = TextDecoration.Underline
                         )
+
                     ) {
                         // Normal weight
                         append(workout.name)
@@ -151,24 +155,57 @@ fun WorkoutCard(
                 }
             )
 
+            // QUANTITY
+            if (workout.quantity.isNotEmpty()) {
+                Text(
+                    modifier = Modifier.padding(bottom = 5.dp),
+                    text = buildAnnotatedString {
+                        withStyle(
+                            style = SpanStyle(
+                                fontSize = 19.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        ) {
+                            // Medium weight
+                            append("Quantity:\t\t\t")
+                        }
+                        withStyle(
+                            style = SpanStyle(
+                                fontSize = 18.sp
+                            )
+                        ) {
+                            // Normal weight
+                            append("${workout.quantity}")
+                        }
+                    }
+                )
+            }
+
             // DURATION
-            Text(
-                modifier = Modifier.padding(bottom = 5.dp),
-                text = buildAnnotatedString {
-                    withStyle(style = SpanStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium)) {
-                        // Medium weight
-                        append("Duration:\t\t\t")
+            if (workout.duration.isNotEmpty()) {
+                Text(
+                    modifier = Modifier.padding(bottom = 5.dp),
+                    text = buildAnnotatedString {
+                        withStyle(
+                            style = SpanStyle(
+                                fontSize = 19.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        ) {
+                            // Medium weight
+                            append("Duration:\t\t\t")
+                        }
+                        withStyle(
+                            style = SpanStyle(
+                                fontSize = 18.sp
+                            )
+                        ) {
+                            // Normal weight
+                            append("${workout.duration} minutes")
+                        }
                     }
-                    withStyle(
-                        style = SpanStyle(
-                            fontSize = 18.sp
-                        )
-                    ) {
-                        // Normal weight
-                        append("${workout.duration} minutes")
-                    }
-                }
-            )
+                )
+            }
 
             // DATE
             Text(
@@ -192,8 +229,8 @@ fun WorkoutCard(
                     }
                 }
             )
-            // DESCRIPTION
-            if (workout.notes != "") {
+            // NOTES
+            if (workout.notes.isNotEmpty()) {
                 Text(
                     text = buildAnnotatedString {
                         // Doing this style allows for part of the text to be in the 'Medium' bold style while the data text is normal weight

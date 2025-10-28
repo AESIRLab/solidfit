@@ -53,11 +53,12 @@ import com.example.solidfit.model.WorkoutItem
 fun AddEditWorkoutScreen(
     workout: WorkoutItem? = null,
     viewModel: WorkoutItemViewModel,
-    onSaveWorkout: (String, String, String, String, String, String) -> Unit,
+    onSaveWorkout: (String, String, String, String, String, String, String) -> Unit,
     onCancel: () -> Unit
 ) {
     var id by remember { mutableStateOf(workout?.id ?: "") }
     var name by remember { mutableStateOf(workout?.name ?: "") }
+    var quantity by remember { mutableStateOf(workout?.quantity?: "")}
     var duration by remember { mutableStateOf(workout?.duration?: "") }
     var workoutType by remember { mutableStateOf(workout?.workoutType ?: "") }
     var notes by remember {mutableStateOf(workout?.notes ?: "")}
@@ -87,19 +88,12 @@ fun AddEditWorkoutScreen(
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("Workout Name") },
+            label = { Text("Workout Name (Required)") },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 10.dp)
         )
-        // Active Minutes field
-        OutlinedTextField(
-            value = duration,
-            onValueChange = { duration = it },
-            label = { Text("Duration (mins)") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth()
-        )
+
         // Workout Type field
         OutlinedTextField(
             value = workoutType,
@@ -108,7 +102,25 @@ fun AddEditWorkoutScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Workout Type field
+        // Quantity field
+        OutlinedTextField(
+            value = quantity,
+            onValueChange = { quantity = it },
+            label = { Text("Quantity") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Duration field
+        OutlinedTextField(
+            value = duration,
+            onValueChange = { duration = it },
+            label = { Text("Duration (mins)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Notes field
         OutlinedTextField(
             value = notes,
             onValueChange = { notes = it },
@@ -116,71 +128,42 @@ fun AddEditWorkoutScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        if (workout != null) {
-            if (workout.mediaUri.isNotBlank()) {
-                val ctx = LocalContext.current
-                val model = remember(workout.mediaUri) {
-                    val s = workout.mediaUri
-                    when {
-                        s.isBlank() -> null
-                        s.startsWith("content", true) -> Uri.parse(s)
-                        else -> viewModel.buildAuthorizedImageRequest(ctx, s) ?: s
-                    }
-                }
-
-                if (model != null) {
-                    SubcomposeAsyncImage(
-                        model = model,
-                        contentDescription = "Workout photo",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .padding(top = 16.dp)
-                            .fillMaxWidth(0.8f)
-                            .height(300.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .align(Alignment.CenterHorizontally)
-                            .border(.7.dp, Color.Black, RoundedCornerShape(8.dp))
-                    ) {
-                        when (painter.state) {
-                            is AsyncImagePainter.State.Loading -> {
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .background(Color.Gray.copy(alpha = 0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) { CircularProgressIndicator(modifier = Modifier.size(24.dp)) }
-                            }
-
-                            is AsyncImagePainter.State.Error -> {
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .background(Color.Gray.copy(alpha = 0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Failed to load image",
-                                        tint = Color.Gray
-                                    )
-                                }
-                            }
-
-                            else -> SubcomposeAsyncImageContent()
+        if (mediaUri.toString().isNotBlank()) {
+            SubcomposeAsyncImage(
+                model = mediaUri,
+                contentDescription = "Workout photo",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .fillMaxWidth(0.8f)
+                    .height(400.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .align(Alignment.CenterHorizontally)
+                    .border(.7.dp, Color.Black, RoundedCornerShape(8.dp))
+            ) {
+                when (painter.state) {
+                    is AsyncImagePainter.State.Loading -> {
+                        // Spinner while the image decodes/loads
+                        Box(
+                            modifier = Modifier.matchParentSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
                         }
                     }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(70.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Gray.copy(alpha = 0.1f))
-                    )
+                    is AsyncImagePainter.State.Error -> {
+                        // Gentle error placeholder (no endless spinner)
+                        Box(
+                            modifier = Modifier.matchParentSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Failed to load image", color = Color.Gray)
+                        }
+                    }
+                    else -> SubcomposeAsyncImageContent() // 💡 Renders the bitmap
                 }
-            } else {
-                Box(modifier = Modifier.size(70.dp))
             }
-        }
+            }
 
         Row(
             modifier = Modifier
@@ -216,7 +199,7 @@ fun AddEditWorkoutScreen(
                     0.73f)),
                 onClick = {
                     if (name.isNotBlank()) {
-                        onSaveWorkout(id, name, duration, workoutType, notes, mediaUri.toString())
+                        onSaveWorkout(id, name, quantity, duration, workoutType, notes, mediaUri.toString())
                     }
                 },
                 enabled = name.isNotBlank()

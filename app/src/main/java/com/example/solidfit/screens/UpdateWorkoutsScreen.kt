@@ -168,12 +168,12 @@ fun UpdateWorkouts(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.hsl(
-                        224f,
-                        1f,
-                        0.73f
-                    ),
-                    titleContentColor = MaterialTheme.colorScheme.primary,
+//                    containerColor = Color.hsl(
+//                        224f,
+//                        1f,
+//                        0.73f
+//                    ),
+                    containerColor = MaterialTheme.colorScheme.primary,
                 ),
                 title = {
                     Row (modifier = Modifier
@@ -287,10 +287,12 @@ fun UpdateWorkouts(
         NavHost(
             navController = navController,
             startDestination = SolidAuthFlowScreen.WorkoutList.name,
-            modifier = Modifier.padding(
-                top = innerPadding.calculateTopPadding(),
-                bottom = innerPadding.calculateBottomPadding()
-            )
+//            color = MaterialTheme.colorScheme.background,
+            modifier = Modifier
+                .padding(
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = innerPadding.calculateBottomPadding()
+                ),
         ) {
             // SCREEN: displays the list of workouts
             composable(route = SolidAuthFlowScreen.WorkoutList.name) {
@@ -364,12 +366,13 @@ fun UpdateWorkouts(
                         AddEditWorkoutScreen(
                             workout = workoutState,
                             viewModel = viewModel,
-                            onSaveWorkout = { _, name, duration, workoutType, notes, mediaUri ->
+                            onSaveWorkout = { _, name, quantity, duration, workoutType, notes, mediaUri ->
 
                                 val updated = workout.copy(
                                     name = name,
                                     dateModified = System.currentTimeMillis(),
                                     workoutType = workoutType,
+                                    quantity = quantity,
                                     duration = duration,
                                     notes = notes,
                                     mediaUri = mediaUri
@@ -399,13 +402,14 @@ fun UpdateWorkouts(
                 val addWorkoutCoroutineScope = rememberCoroutineScope()
                 AddEditWorkoutScreen(
                     viewModel = viewModel,
-                    onSaveWorkout = { _, name, duration, workoutType, notes, mediaUri ->
+                    onSaveWorkout = { _, name, quantity, duration, workoutType, notes, mediaUri ->
                         addWorkoutCoroutineScope.launch {
                             viewModel.insert(
                                 WorkoutItem(
                                     id = "",
                                     name = name,
                                     dateModified = 0,
+                                    quantity = quantity,
                                     duration = duration,
                                     heartRate = 0,
                                     workoutType = workoutType,

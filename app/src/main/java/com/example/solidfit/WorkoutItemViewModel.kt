@@ -79,13 +79,11 @@ class WorkoutItemViewModel(
         remoteDataSource.expirationTime = expirationTime
         remoteDataSource.accessToken = accessToken
 
-        // Prime the cache *after* setting the WebID
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 getOrFetchStorageRoot()
                 Log.d("SolidImage", "Storage root primed in setRemoteRepositoryData.")
 
-                // Tell the UI we are ready to display images
                 withContext(Dispatchers.Main) {
                     _isReady.value = true
                 }
@@ -98,33 +96,26 @@ class WorkoutItemViewModel(
 
     fun updateWebId(webId: String) {
         viewModelScope.launch {
-            // Keep the new webId (or reset if bad)
             try {
                 repository.insertWebId(webId)
             } catch (e: Exception) {
                 repository.resetModel()
             }
 
-            // Fetch remote snapshot
             val remote = if (remoteDataSource.remoteAccessible())
                 remoteDataSource.fetchRemoteItemList()
             else
                 emptyList()
 
-            // Fetch one snapshot of local items
             val local = repository.allWorkoutItemsAsFlow.firstOrNull() ?: emptyList()
 
-            // Merge & de-duplicate
             val merged = (remote + local)
                 .distinctBy { it.id }
 
-            // Overwrite local cache so you never “see” dupes again
             repository.overwriteModelWithList(merged)
 
-            // Update UI
             _allItems.value = merged
 
-            // Push merged back to remote
             if (remoteDataSource.remoteAccessible()) {
                 remoteDataSource.updateRemoteItemList(merged)
             }
@@ -132,6 +123,7 @@ class WorkoutItemViewModel(
     }
 
     fun insert(item: WorkoutItem) {
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.insert(item)
@@ -143,7 +135,7 @@ class WorkoutItemViewModel(
                 val prepared = try {
                     ensureRemoteMedia(target)
                 } catch (e: Exception) {
-                    Log.e("WorkoutViewModel", "Image upload failed, will sync later.", e)
+                    Log.e("WorkoutViewModel", "Image upload failed for new item, will sync later.", e)
                     target
                 }
 
@@ -153,30 +145,34 @@ class WorkoutItemViewModel(
 
                 if (remoteDataSource.remoteAccessible()) {
                     val latest = repository.allWorkoutItemsAsFlow.firstOrNull().orEmpty()
+
                     val sanitized = mutableListOf<WorkoutItem>()
                     for (workout in latest) {
-                        sanitized.add(ensureRemoteMedia(workout))
+                        try {
+                            sanitized.add(ensureRemoteMedia(workout))
+                        } catch (e: Exception) {
+                            Log.w("WorkoutViewModel", "Failed to sanitize item ${workout.id}, skipping its media upload.", e)
+                            sanitized.add(workout)
+                        }
                     }
+
+                    remoteDataSource.updateRemoteItemList(sanitized)
                 }
-            } catch (e: Exception) {
-                Log.e("WorkoutViewModel", "Failed to insert and sync workout.", e)
+            } catch (t: Throwable) {
+                Log.e("WorkoutViewModel", "Failed to insert and sync workout.", t)
             }
         }
     }
 
     fun delete(item: WorkoutItem) {
         viewModelScope.launch {
-            // 1) Delete it from your local RDF store
             repository.deleteByUri(item.id)
 
-            // 2) Pull one snapshot of your now-current local list
             val remaining: List<WorkoutItem> =
                 repository.allWorkoutItemsAsFlow.firstOrNull() ?: emptyList()
 
-            // 3) Update your in-memory UI state
             _allItems.value = remaining
 
-            // 4) Sync that exact list back to your Pod
             remoteDataSource.updateRemoteItemList(remaining)
         }
     }
@@ -207,12 +203,16 @@ class WorkoutItemViewModel(
 
                     val sanitized = mutableListOf<WorkoutItem>()
                     for (workout in latest) {
-                        sanitized.add(ensureRemoteMedia(workout))
+                        try {
+                            sanitized.add(ensureRemoteMedia(workout))
+                        } catch (e: Exception) {
+                            Log.w("WorkoutViewModel", "Failed to sanitize item ${workout.id}, skipping its media upload.", e)
+                            sanitized.add(workout)
+                        }
                     }
 
                     remoteDataSource.updateRemoteItemList(sanitized)
                 }
-
             } catch (t: Throwable) {
                 Log.e("WorkoutViewModel", "Failed to sync remote update.", t)
             }
@@ -228,22 +228,20 @@ class WorkoutItemViewModel(
         if (uri.startsWith("http", ignoreCase = true)) return item
         if (!uri.startsWith("content", ignoreCase = true)) return item
 
-        // deterministic base name from the workout's id fragment
         val idPart = item.id.substringAfterLast('#', item.id).ifBlank { UUID.randomUUID().toString() }
         val relative = uploadImageIfLocal(uri, preferredBaseName = idPart)
-        return item.copy(mediaUri = relative)  // store RELATIVE path in DB/Pod
+        return item.copy(mediaUri = relative)
     }
 
     private suspend fun sanitizeForPod(items: List<WorkoutItem>): List<WorkoutItem> =
         items.map { ensureRemoteMedia(it) }
 
-    // cache the user's Pod storage root once per session
     private var storageRootCache: String? = null
 
     private suspend fun getOrFetchStorageRoot(): String? {
         storageRootCache?.let { return it }
         val webId = remoteDataSource.webId ?: return null
-        val root = getStorageRootFromWebId(webId) // <- you already have this helper
+        val root = getStorageRootFromWebId(webId)
         storageRootCache = if (root.endsWith("/")) root else "$root/"
         return storageRootCache
     }
@@ -260,7 +258,6 @@ class WorkoutItemViewModel(
         val bytes = cr.openInputStream(u)?.use { it.readBytes() }
             ?: error("Failed to read image stream")
 
-        // derive extension from MIME
         val ext = mime.substringAfter('/', "bin")
         val baseName = preferredBaseName ?: UUID.randomUUID().toString()
         val fileName = "$baseName.$ext"
@@ -269,11 +266,10 @@ class WorkoutItemViewModel(
         val storageRoot = getOrFetchStorageRoot()
             ?: error("Storage root unavailable (not signed in yet?)")
         val container = storageRoot + IMAGES_DIR
-        ensureContainer(container) // will no-op if exists
+        ensureContainer(container)
 
         val targetUrl = container + fileName
 
-        // DPoP-authenticated PUT
         val client = getUnsafeOkHttpClient()
         val at = remoteDataSource.accessToken ?: error("No access token")
         val jwk = remoteDataSource.signingJwk ?: error("No signing JWK")
@@ -292,15 +288,12 @@ class WorkoutItemViewModel(
             if (!resp.isSuccessful) error("Image upload failed: ${resp.code}")
         }
 
-        // return RELATIVE path for storage in the item
-        return@withContext IMAGES_DIR + fileName     // e.g. "AndroidApplication/Images/SolidFit/<id>.jpeg"
+        return@withContext IMAGES_DIR + fileName
     }
 
-    // Replace the existing function with this new version
     fun buildAuthorizedImageRequest(context: Context, mediaUri: String): ImageRequest? {
         if (mediaUri.isBlank()) return null
 
-        // If it's content://, we don't try to fetch from the Pod
         if (mediaUri.startsWith("content", ignoreCase = true)) return null
 
         val root = storageRootCache
@@ -321,7 +314,6 @@ class WorkoutItemViewModel(
             return null
         }
 
-        // Resolve relative path -> absolute URL using cached storage root.
         val fullUrl = if (mediaUri.startsWith("http", ignoreCase = true)) {
             mediaUri
         } else {
@@ -383,7 +375,6 @@ class WorkoutItemViewModel(
         val containerUrl = if (containerUrlRaw.endsWith("/")) containerUrlRaw else "$containerUrlRaw/"
         val client = getUnsafeOkHttpClient()
 
-        // HEAD the container
         val headDpop = buildResourceDPoP(
             "HEAD", containerUrl,
             remoteDataSource.accessToken!!,
@@ -400,7 +391,6 @@ class WorkoutItemViewModel(
             if (h.isSuccessful) return@withContext // already exists
             if (h.code != 404) error("HEAD ${h.code} for $containerUrl")
 
-            // A tiny RDF body declaring BasicContainer + Container helps avoid 400/415
             val turtleBody = """
             @prefix ldp: <http://www.w3.org/ns/ldp#> .
             <> a ldp:BasicContainer, ldp:Container .
@@ -424,10 +414,8 @@ class WorkoutItemViewModel(
             client.newCall(putReq).execute().use { p ->
                 if (p.isSuccessful || p.code == 409) return@withContext
 
-                // LOG the body once so we can see what ESS didn't like
                 val msg = p.body?.string().orEmpty()
 
-                // Some ESS setups prefer POST-to-parent; try that as a fallback
                 if (p.code == 400 || p.code == 415) {
                     val parent = containerUrl.trimEnd('/').substringBeforeLast('/') + "/"
                     val postDpop = buildResourceDPoP(
@@ -440,7 +428,7 @@ class WorkoutItemViewModel(
                         .header("Authorization", "DPoP ${remoteDataSource.accessToken}")
                         .header("DPoP", postDpop)
                         .header("Link", "<http://www.w3.org/ns/ldp#BasicContainer>; rel=\"type\"")
-                        .header("Slug", containerUrl.removeSuffix("/").substringAfterLast('/')) // e.g., "Images"
+                        .header("Slug", containerUrl.removeSuffix("/").substringAfterLast('/'))
                         .header("Content-Type", "text/turtle")
                         .post(turtleBody.toRequestBody("text/turtle".toMediaTypeOrNull()))
                         .build()
@@ -458,7 +446,6 @@ class WorkoutItemViewModel(
     }
 
     private suspend fun getStorageRootFromWebId(webId: String): String = withContext(Dispatchers.IO) {
-        // Fetch the WebID doc and extract pim:storage
         val client = getUnsafeOkHttpClient()
         val req = Request.Builder()
             .url(webId)
@@ -475,18 +462,15 @@ class WorkoutItemViewModel(
 
     fun loadWorkoutById(id: String) {
         viewModelScope.launch {
-            // Try local-first
             repository.getWorkoutItemLiveData(id).firstOrNull()?.let {
                 _workoutItem.value = it
                 return@launch
             }
 
-            // Fallback to in-memory merged list
             val fromMerged = _allItems.value.find { it.id == id }
             if (fromMerged != null) {
                 _workoutItem.value = fromMerged
             } else if (remoteDataSource.remoteAccessible()) {
-                // as a last resort, pull fresh remote list into merged
                 val remote = remoteDataSource.fetchRemoteItemList()
                 val local = repository.allWorkoutItemsAsFlow.firstOrNull() ?: emptyList()
                 val merged = merge(remote, local)
