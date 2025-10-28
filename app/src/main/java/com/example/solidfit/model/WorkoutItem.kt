@@ -7,6 +7,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -210,94 +212,64 @@ fun WorkoutItem(
                 // THUMBNAIL
                 if (workout.mediaUri.isNotBlank()) {
                     val ctx = LocalContext.current
-
                     val model = remember(workout.mediaUri) {
                         val s = workout.mediaUri
                         when {
                             s.isBlank() -> null
-                            s.startsWith("content", true) -> Uri.parse(s) // local preview
+                            s.startsWith("content", true) -> Uri.parse(s)
                             else -> viewModel.buildAuthorizedImageRequest(ctx, s) ?: s
                         }
                     }
 
                     if (model != null) {
-                        // 1. Create ONE painter and remember it
-                        val painter = rememberAsyncImagePainter(model = model)
-
-                        // 2. Check the state of THAT painter
-                        when (painter.state) {
-
-                            is AsyncImagePainter.State.Loading -> {
-                                // The painter is loading, show a spinner
-                                Box(
-                                    modifier = Modifier
-                                        .size(70.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color.Gray.copy(alpha = 0.1f)), // Light background
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                        SubcomposeAsyncImage(
+                            model = model,
+                            contentDescription = "Workout photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(70.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                        ) {
+                            when (painter.state) {
+                                is AsyncImagePainter.State.Loading -> {
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .background(Color.Gray.copy(alpha = 0.1f)),
+                                        contentAlignment = Alignment.Center
+                                    ) { CircularProgressIndicator(modifier = Modifier.size(24.dp)) }
                                 }
-                            }
-
-                            is AsyncImagePainter.State.Success -> {
-                                // The painter is successful, show the Image
-                                Image(
-                                    painter = painter, // <-- Correct: use the existing painter
-                                    contentDescription = "Workout photo",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .size(70.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                )
-                            }
-
-                            is AsyncImagePainter.State.Error -> {
-                                // The request failed. Show a "broken image" icon.
-                                Box(
-                                    modifier = Modifier
-                                        .size(70.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color.Gray.copy(alpha = 0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Failed to load image",
-                                        tint = Color.Gray
-                                    )
+                                is AsyncImagePainter.State.Error -> {
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .background(Color.Gray.copy(alpha = 0.1f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Failed to load image",
+                                            tint = Color.Gray
+                                        )
+                                    }
                                 }
-                            }
-
-                            is AsyncImagePainter.State.Empty -> {
-                                // The model was null or empty.
-                                Box(
-                                    modifier = Modifier
-                                        .size(70.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color.Gray.copy(alpha = 0.1f))
-                                )
+                                else -> SubcomposeAsyncImageContent()
                             }
                         }
                     } else {
-                        // Model is null (VM is not ready), show a spinner
                         Box(
                             modifier = Modifier
                                 .size(70.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Gray.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(32.dp))
-                        }
+                                .background(Color.Gray.copy(alpha = 0.1f))
+                        )
                     }
                 } else {
-                    // This else runs if mediaUri is blank (no image).
-                    // We show an empty Box to keep the layout consistent.
                     Box(modifier = Modifier.size(70.dp))
                 }
 
                 Row(modifier = Modifier.padding(top = 6.dp)) {
+
                     // EDIT BUTTON
                     IconButton(onClick = { onEdit(workout) }) {
                         Icon(

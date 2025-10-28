@@ -11,9 +11,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +38,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImagePainter
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.solidfit.WorkoutItemViewModel
@@ -52,7 +60,6 @@ fun WorkoutCard(
 ) {
     Box (
         modifier = Modifier
-            .background(Color(0xffEBDCD1))
             .fillMaxHeight()
     ) {
         Column (
@@ -61,23 +68,20 @@ fun WorkoutCard(
                 .padding(start = 16.dp, end = 16.dp)
                 .verticalScroll(rememberScrollState())
         ){
-            // IMAGE
             if (workout.mediaUri.isNotBlank()) {
                 val ctx = LocalContext.current
-//                val vm: WorkoutItemViewModel = viewModel(factory = WorkoutItemViewModel.Factory)
-
                 val model = remember(workout.mediaUri) {
                     val s = workout.mediaUri
                     when {
                         s.isBlank() -> null
-                        s.startsWith("content", true) -> Uri.parse(s) // local preview
+                        s.startsWith("content", true) -> Uri.parse(s)
                         else -> viewModel.buildAuthorizedImageRequest(ctx, s) ?: s
                     }
                 }
 
                 if (model != null) {
-                    Image(
-                        painter = rememberAsyncImagePainter(model = model),
+                    SubcomposeAsyncImage(
+                        model = model,
                         contentDescription = "Workout photo",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -87,8 +91,43 @@ fun WorkoutCard(
                             .clip(RoundedCornerShape(8.dp))
                             .align(Alignment.CenterHorizontally)
                             .border(.7.dp, Color.Black, RoundedCornerShape(8.dp))
+                    ) {
+                        when (painter.state) {
+                            is AsyncImagePainter.State.Loading -> {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .background(Color.Gray.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) { CircularProgressIndicator(modifier = Modifier.size(24.dp)) }
+                            }
+                            is AsyncImagePainter.State.Error -> {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .background(Color.Gray.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Failed to load image",
+                                        tint = Color.Gray
+                                    )
+                                }
+                            }
+                            else -> SubcomposeAsyncImageContent()
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(70.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Gray.copy(alpha = 0.1f))
                     )
                 }
+            } else {
+                Box(modifier = Modifier.size(70.dp))
             }
 
 

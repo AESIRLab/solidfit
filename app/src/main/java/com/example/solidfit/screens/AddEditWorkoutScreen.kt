@@ -5,20 +5,27 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +41,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImagePainter
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import coil.compose.rememberAsyncImagePainter
 import com.example.solidfit.WorkoutItemViewModel
 import com.example.solidfit.model.WorkoutItem
@@ -109,31 +119,69 @@ fun AddEditWorkoutScreen(
         if (workout != null) {
             if (workout.mediaUri.isNotBlank()) {
                 val ctx = LocalContext.current
-    //                val vm: WorkoutItemViewModel = viewModel(factory = WorkoutItemViewModel.Factory)
-
                 val model = remember(workout.mediaUri) {
                     val s = workout.mediaUri
                     when {
                         s.isBlank() -> null
-                        s.startsWith("content", true) -> Uri.parse(s) // local preview
+                        s.startsWith("content", true) -> Uri.parse(s)
                         else -> viewModel.buildAuthorizedImageRequest(ctx, s) ?: s
                     }
                 }
 
-                Image(
-                    painter = rememberAsyncImagePainter(model = model),
-                    contentDescription = "Workout photo",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .padding(top = 16.dp)
-                        .fillMaxWidth(0.8f)
-                        .height(300.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .align(Alignment.CenterHorizontally)
-                        .border(.7.dp, Color.Black, RoundedCornerShape(8.dp))
-                )
+                if (model != null) {
+                    SubcomposeAsyncImage(
+                        model = model,
+                        contentDescription = "Workout photo",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .padding(top = 16.dp)
+                            .fillMaxWidth(0.8f)
+                            .height(300.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .align(Alignment.CenterHorizontally)
+                            .border(.7.dp, Color.Black, RoundedCornerShape(8.dp))
+                    ) {
+                        when (painter.state) {
+                            is AsyncImagePainter.State.Loading -> {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .background(Color.Gray.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) { CircularProgressIndicator(modifier = Modifier.size(24.dp)) }
+                            }
+
+                            is AsyncImagePainter.State.Error -> {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .background(Color.Gray.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Failed to load image",
+                                        tint = Color.Gray
+                                    )
+                                }
+                            }
+
+                            else -> SubcomposeAsyncImageContent()
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(70.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Gray.copy(alpha = 0.1f))
+                    )
+                }
+            } else {
+                Box(modifier = Modifier.size(70.dp))
             }
         }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
