@@ -230,7 +230,7 @@ fun WorkoutItem(
                 // THUMBNAIL
                 if (workout.mediaUri.isNotBlank()) {
                     val ctx = LocalContext.current
-                    val model = remember(workout.mediaUri) {
+                    val model = remember(workout.mediaUri, workout.dateModified) {
                         val s = workout.mediaUri
                         when {
                             s.isBlank() -> null

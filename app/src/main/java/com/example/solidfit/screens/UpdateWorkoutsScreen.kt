@@ -135,45 +135,39 @@ fun UpdateWorkouts(
         }
     }
 
-    LifecycleEventEffect(event = Lifecycle.Event.ON_RESUME) {
-        runBlocking {
-            // Check if we need to set data *first*
-            if (!viewModel.remoteIsAvailable()) {
-                val webId = store.getWebId().first()
-                val accessToken = store.getAccessToken().first()
-                val signingJwk = store.getSigner().first()
-                val expirationTime = 2301220800000
-                viewModel.setRemoteRepositoryData( // This primes the cache
-                    accessToken,
-                    signingJwk,
-                    webId,
-                    expirationTime
-                )
-                viewModel.updateWebId(webId) // This syncs data
-            } else {
-                // If data is already set, just sync
-                val webId = store.getWebId().first()
-                viewModel.updateWebId(webId)
-            }
-        }
-    }
-
-    LifecycleEventEffect(event = Lifecycle.Event.ON_STOP) {
-        coroutineScope.launch {
-            viewModel.updateRemote()
-        }
-    }
+//    LifecycleEventEffect(event = Lifecycle.Event.ON_RESUME) {
+//        runBlocking {
+//            // Check if we need to set data *first*
+//            if (!viewModel.remoteIsAvailable()) {
+//                val webId = store.getWebId().first()
+//                val accessToken = store.getAccessToken().first()
+//                val signingJwk = store.getSigner().first()
+//                val expirationTime = 2301220800000
+//                viewModel.setRemoteRepositoryData( // This primes the cache
+//                    accessToken,
+//                    signingJwk,
+//                    webId,
+//                    expirationTime
+//                )
+//                viewModel.updateWebId(webId) // This syncs data
+//            } else {
+//                // If data is already set, just sync
+//                val webId = store.getWebId().first()
+//                viewModel.updateWebId(webId)
+//            }
+//        }
+//    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-//                    containerColor = Color.hsl(
-//                        224f,
-//                        1f,
-//                        0.73f
-//                    ),
-                    containerColor = MaterialTheme.colorScheme.primary,
+                    containerColor = Color.hsl(
+                        224f,
+                        1f,
+                        0.73f
+                    ),
+//                    containerColor = MaterialTheme.colorScheme.primary,
                 ),
                 title = {
                     Row (modifier = Modifier
@@ -378,16 +372,15 @@ fun UpdateWorkouts(
                                     mediaUri = mediaUri
                                 )
 
-                                editWorkoutCoroutineScope.launch {
-                                    viewModel.update(updated)
+                                viewModel.update(updated)
 
-                                    navController.navigate(SolidAuthFlowScreen.WorkoutList.name) {
-                                        launchSingleTop = true
-                                        popUpTo(SolidAuthFlowScreen.WorkoutList.name) { inclusive = false }
-                                    }
-
-                                    saveWorkoutLog(context)
+                                navController.navigate(SolidAuthFlowScreen.WorkoutList.name) {
+                                    launchSingleTop = true
+                                    popUpTo(SolidAuthFlowScreen.WorkoutList.name) { inclusive = false }
                                 }
+
+                                saveWorkoutLog(context)
+
                             },
                             onCancel = {
                                 navController.navigate(SolidAuthFlowScreen.WorkoutList.name)

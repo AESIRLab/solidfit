@@ -67,12 +67,12 @@ fun WorkoutCard(
         Column (
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp)
+                .padding(start = 14.dp, end = 14.dp)
                 .verticalScroll(rememberScrollState())
         ){
             if (workout.mediaUri.isNotBlank()) {
                 val ctx = LocalContext.current
-                val model = remember(workout.mediaUri) {
+                val model = remember(workout.mediaUri, workout.dateModified) {
                     val s = workout.mediaUri
                     when {
                         s.isBlank() -> null
@@ -207,7 +207,7 @@ fun WorkoutCard(
                 )
             }
 
-            // DATE
+            // DATE CREATED & MODIFIED
             Text(
                 modifier = Modifier.padding(bottom = 5.dp),
                 text = buildAnnotatedString {
@@ -229,6 +229,28 @@ fun WorkoutCard(
                     }
                 }
             )
+            if (workout.dateModified != 0.toLong()) {
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(style = SpanStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium)) {
+                            // Medium weight
+                            append("Modified:\t\t\t")
+                        }
+                        withStyle(
+                            style = SpanStyle(
+                                fontSize = 18.sp,
+                            )
+                        ) {
+                            // Normal weight
+                            append(
+                                SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
+                                    Date(workout.dateModified)
+                                )
+                            )
+                        }
+                    }
+                )
+            }
             // NOTES
             if (workout.notes.isNotEmpty()) {
                 Text(

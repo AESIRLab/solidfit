@@ -1,5 +1,6 @@
 package com.example.solidfit
 
+import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -9,6 +10,8 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import coil.ImageLoader
+import coil.ImageLoaderFactory
 import coil.request.ImageRequest
 import com.example.solidfit.WorkoutItemSolidApplication.Companion.IMAGES_DIR
 import com.example.solidfit.data.WorkoutItemRepository
@@ -37,11 +40,14 @@ import org.skCompiler.generatedModel.WorkoutItemRemoteDataSource
 import java.security.MessageDigest
 import java.util.Date
 import java.util.UUID
+import coil.memory.MemoryCache
+import coil.imageLoader
 
 
 class WorkoutItemViewModel(
     private val repository: WorkoutItemRepository,
-    private val remoteDataSource: WorkoutItemRemoteDataSource
+    private val remoteDataSource: WorkoutItemRemoteDataSource,
+    private val application: Application
 ): ViewModel() {
 
     private var _allItems: MutableStateFlow<List<WorkoutItem>> = MutableStateFlow(listOf())
@@ -143,6 +149,16 @@ class WorkoutItemViewModel(
                     repository.update(prepared)
                 }
 
+                if (!prepared.mediaUri.startsWith("content", true) && prepared.mediaUri.isNotBlank()) {
+                    val fullUrl = resolveMediaUrl(prepared.mediaUri) // Get the full https://... URL
+                    if (fullUrl != null) {
+                        val loader = application.imageLoader
+                        loader.memoryCache?.remove(MemoryCache.Key(fullUrl))
+                        loader.diskCache?.remove(fullUrl)
+                        Log.d("SolidImage", "Cache cleared for: $fullUrl")
+                    }
+                }
+
                 if (remoteDataSource.remoteAccessible()) {
                     val latest = repository.allWorkoutItemsAsFlow.firstOrNull().orEmpty()
 
@@ -189,14 +205,38 @@ class WorkoutItemViewModel(
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                repository.update(item)
+
+                if (!item.mediaUri.startsWith("content", true) && item.mediaUri.isNotBlank()) {
+                    val fullUrl = resolveMediaUrl(item.mediaUri)
+                    if (fullUrl != null) {
+                        val loader = application.imageLoader
+                        loader.memoryCache?.remove(MemoryCache.Key(fullUrl))
+                        loader.diskCache?.remove(fullUrl)
+                        Log.d("SolidImage", "Cache cleared for: $fullUrl")
+                    }
+                }
+
                 val prepared = try {
                     ensureRemoteMedia(item)
                 } catch (e: Exception) {
-                    Log.e("WorkoutViewModel", "Image upload failed during update.", e)
+                    Log.e("WorkoutViewModel", "Image upload failed during background update.", e)
                     item
                 }
 
-                repository.update(prepared)
+                if (!prepared.mediaUri.startsWith("content", true) && prepared.mediaUri.isNotBlank()) {
+                    val fullUrl = resolveMediaUrl(prepared.mediaUri)
+                    if (fullUrl != null) {
+                        val loader = application.imageLoader
+                        loader.memoryCache?.remove(MemoryCache.Key(fullUrl))
+                        loader.diskCache?.remove(fullUrl)
+                        Log.d("SolidImage", "Cache cleared post-upload for: $fullUrl")
+                    }
+                }
+
+                if (prepared.mediaUri != item.mediaUri) {
+                    repository.update(prepared)
+                }
 
                 if (remoteDataSource.remoteAccessible()) {
                     val latest = repository.allWorkoutItemsAsFlow.firstOrNull().orEmpty()
@@ -210,12 +250,23 @@ class WorkoutItemViewModel(
                             sanitized.add(workout)
                         }
                     }
-
                     remoteDataSource.updateRemoteItemList(sanitized)
                 }
+
             } catch (t: Throwable) {
                 Log.e("WorkoutViewModel", "Failed to sync remote update.", t)
             }
+        }
+    }
+
+    private fun resolveMediaUrl(mediaUri: String): String? {
+        if (mediaUri.isBlank()) return null
+        return if (mediaUri.startsWith("http", ignoreCase = true)) {
+            mediaUri
+        } else {
+            val root = storageRootCache ?: return null
+            val sep = if (root.endsWith("/")) "" else "/"
+            root + sep + mediaUri.trimStart('/')
         }
     }
 
@@ -234,7 +285,14 @@ class WorkoutItemViewModel(
     }
 
     private suspend fun sanitizeForPod(items: List<WorkoutItem>): List<WorkoutItem> =
-        items.map { ensureRemoteMedia(it) }
+        items.map {
+            try {
+                ensureRemoteMedia(it)
+            } catch (e: Exception) {
+                Log.w("WorkoutViewModel", "Failed to sanitize item ${it.id} for pod, skipping media upload.", e)
+                it
+            }
+        }
 
     private var storageRootCache: String? = null
 
@@ -280,7 +338,6 @@ class WorkoutItemViewModel(
             .header("Authorization", "DPoP $at")
             .header("DPoP", dpop)
             .header("Content-Type", mime)
-            .header("If-None-Match", "*")
             .put(bytes.toRequestBody(mime.toMediaTypeOrNull()))
             .build()
 
@@ -328,6 +385,8 @@ class WorkoutItemViewModel(
             .addHeader("Authorization", "DPoP $at")
             .addHeader("DPoP", dpop)
             .addHeader("Accept", "image/*, */*;q=0.1")
+            .memoryCacheKey(MemoryCache.Key(fullUrl))
+            .diskCacheKey(fullUrl)
             .listener(
                 onStart = { Log.d("SolidImage", "Coil start: $fullUrl") },
                 onSuccess = { _, r ->
@@ -489,7 +548,7 @@ class WorkoutItemViewModel(
                 val application = (this[APPLICATION_KEY] as WorkoutItemSolidApplication)
                 val itemRepository = application.repository
                 val itemRemoteDataSource = WorkoutItemRemoteDataSource(externalScope = CoroutineScope(SupervisorJob() + Dispatchers.Default))
-                WorkoutItemViewModel(itemRepository, itemRemoteDataSource)
+                WorkoutItemViewModel(itemRepository, itemRemoteDataSource, application)
             }
         }
     }
