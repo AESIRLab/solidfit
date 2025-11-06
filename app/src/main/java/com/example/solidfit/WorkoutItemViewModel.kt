@@ -61,7 +61,7 @@ class WorkoutItemViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             repository.allWorkoutItemsAsFlow.collect { list ->
                 withContext(Dispatchers.Main) {
-                    _allItems.value = list.distinctBy { it.id }
+                    _allItems.value = list.distinctBy { it.id }.sortedByDescending { it.dateCreated }
                 }
             }
         }
@@ -119,7 +119,7 @@ class WorkoutItemViewModel(
 
             syncRemoteImages(merged)
 
-            _allItems.value = merged
+            _allItems.value = merged.sortedByDescending { it.dateCreated }
 
             if (remoteDataSource.remoteAccessible()) {
                 remoteDataSource.updateRemoteItemList(merged)
@@ -186,7 +186,7 @@ class WorkoutItemViewModel(
             val remaining: List<WorkoutItem> =
                 repository.allWorkoutItemsAsFlow.firstOrNull() ?: emptyList()
 
-            _allItems.value = remaining
+            _allItems.value = remaining.sortedByDescending { it.dateCreated }
 
             remoteDataSource.updateRemoteItemList(remaining)
         }
@@ -554,7 +554,7 @@ class WorkoutItemViewModel(
                 val remote = remoteDataSource.fetchRemoteItemList()
                 val local = repository.allWorkoutItemsAsFlow.firstOrNull() ?: emptyList()
                 val merged = merge(remote, local)
-                _allItems.value = merged
+                _allItems.value = merged.sortedByDescending { it.dateCreated }
                 _workoutItem.value = merged.find { it.id == id }
             } else {
                 _workoutItem.value = null
