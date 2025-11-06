@@ -10,8 +10,6 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import coil.ImageLoader
-import coil.ImageLoaderFactory
 import coil.request.ImageRequest
 import com.example.solidfit.WorkoutItemSolidApplication.Companion.IMAGES_DIR
 import com.example.solidfit.data.WorkoutItemRepository
@@ -29,14 +27,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.skCompiler.generatedModel.WorkoutItemRemoteDataSource
+import com.example.solidfit.data.WorkoutItemRemoteDataSource
 import java.security.MessageDigest
 import java.util.Date
 import java.util.UUID
@@ -119,6 +116,8 @@ class WorkoutItemViewModel(
                 .distinctBy { it.id }
 
             repository.overwriteModelWithList(merged)
+
+            syncRemoteImages(merged)
 
             _allItems.value = merged
 
@@ -346,6 +345,28 @@ class WorkoutItemViewModel(
         }
 
         return@withContext IMAGES_DIR + fileName
+    }
+
+    private fun syncRemoteImages(items: List<WorkoutItem>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            Log.d("SolidImage", "Starting background image sync for ${items.size} items.")
+            val loader = application.imageLoader
+
+            items.forEach { item ->
+                val uri = item.mediaUri
+                if (uri.isNotBlank() && !uri.startsWith("content", ignoreCase = true)) {
+
+                    val request = buildAuthorizedImageRequest(application, uri)
+                    if (request != null) {
+                        Log.d("SolidImage", "Enqueuing sync for: ${request.data}")
+                        loader.enqueue(request)
+                    } else {
+                        Log.w("SolidImage", "Failed to build authorized request for $uri")
+                    }
+                }
+            }
+            Log.d("SolidImage", "Background image sync complete.")
+        }
     }
 
     fun buildAuthorizedImageRequest(context: Context, mediaUri: String): ImageRequest? {

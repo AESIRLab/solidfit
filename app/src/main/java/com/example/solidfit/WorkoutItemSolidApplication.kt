@@ -6,7 +6,7 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import com.example.solidfit.data.WorkoutItemRepository
 import com.example.solidfit.healthdata.HealthConnectManager
-import org.skCompiler.generatedModel.WorkoutItemDatabase
+import com.example.solidfit.data.WorkoutItemDatabase
 import java.io.File
 
 //needed

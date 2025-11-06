@@ -1,6 +1,5 @@
 package com.example.solidfit.data
 
-import org.skCompiler.generatedModel.WorkoutItemDao
 import androidx.`annotation`.WorkerThread
 import com.example.solidfit.model.WorkoutItem
 import kotlin.String

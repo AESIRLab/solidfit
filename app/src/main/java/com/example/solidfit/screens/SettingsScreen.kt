@@ -32,7 +32,7 @@ import com.example.solidfit.SolidAuthFlowScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import org.skCompiler.generatedModel.AuthTokenStore
+import com.example.solidfit.data.AuthTokenStore
 
 @Composable
 fun SettingsScreen(

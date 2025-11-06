@@ -26,7 +26,7 @@ import com.example.solidfit.screens.UpdateWorkouts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.skCompiler.generatedModel.AuthTokenStore
+import com.example.solidfit.data.AuthTokenStore
 
 
 // All apps screens

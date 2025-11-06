@@ -12,7 +12,7 @@ import okhttp3.Request
 import okhttp3.Response
 import org.aesirlab.mylibrary.generateAuthString
 import org.json.JSONObject
-import org.skCompiler.generatedModel.AuthTokenStore
+import com.example.solidfit.data.AuthTokenStore
 import java.security.cert.X509Certificate
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager

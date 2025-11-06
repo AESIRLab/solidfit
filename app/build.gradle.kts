@@ -26,7 +26,7 @@ android {
         minSdk = 30
         targetSdk = 35
         versionCode = 1
-        versionName = "2.0.14"
+        versionName = "2.0.15"
         compileSdkPreview = "VanillaIceCream"
         manifestPlaceholders["appAuthRedirectScheme"] = "com.example.solidfit"
 

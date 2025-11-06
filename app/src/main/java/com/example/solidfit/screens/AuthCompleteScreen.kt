@@ -12,7 +12,7 @@ import org.aesirlab.mylibrary.generateDPoPKey
 import org.aesirlab.mylibrary.sharedfunctions.buildTokenRequest
 import org.aesirlab.mylibrary.sharedfunctions.createUnsafeOkHttpClient
 import org.json.JSONObject
-import org.skCompiler.generatedModel.AuthTokenStore
+import com.example.solidfit.data.AuthTokenStore
 
 private const val TAG = "AuthCompleteScreen"
 @Composable

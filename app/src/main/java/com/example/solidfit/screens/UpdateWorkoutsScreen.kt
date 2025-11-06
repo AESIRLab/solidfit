@@ -22,7 +22,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -44,8 +43,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -67,9 +64,8 @@ import com.example.solidfit.model.WorkoutItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import org.skCompiler.generatedModel.AuthTokenStore
+import com.example.solidfit.data.AuthTokenStore
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -134,29 +130,6 @@ fun UpdateWorkouts(
             }
         }
     }
-
-//    LifecycleEventEffect(event = Lifecycle.Event.ON_RESUME) {
-//        runBlocking {
-//            // Check if we need to set data *first*
-//            if (!viewModel.remoteIsAvailable()) {
-//                val webId = store.getWebId().first()
-//                val accessToken = store.getAccessToken().first()
-//                val signingJwk = store.getSigner().first()
-//                val expirationTime = 2301220800000
-//                viewModel.setRemoteRepositoryData( // This primes the cache
-//                    accessToken,
-//                    signingJwk,
-//                    webId,
-//                    expirationTime
-//                )
-//                viewModel.updateWebId(webId) // This syncs data
-//            } else {
-//                // If data is already set, just sync
-//                val webId = store.getWebId().first()
-//                viewModel.updateWebId(webId)
-//            }
-//        }
-//    }
 
     Scaffold(
         topBar = {

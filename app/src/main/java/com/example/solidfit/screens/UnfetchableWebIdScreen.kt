@@ -37,7 +37,7 @@ import org.aesirlab.mylibrary.buildAuthorizationUrl
 import org.aesirlab.mylibrary.buildConfigRequest
 import org.aesirlab.mylibrary.buildRegistrationJSONBody
 import org.aesirlab.mylibrary.buildRegistrationRequest
-import org.skCompiler.generatedModel.AuthTokenStore
+import com.example.solidfit.data.AuthTokenStore
 
 @Composable
 fun UnfetchableWebIdScreen(

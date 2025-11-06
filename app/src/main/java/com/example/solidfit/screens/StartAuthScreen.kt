@@ -40,7 +40,7 @@ import org.aesirlab.mylibrary.buildConfigRequest
 import org.aesirlab.mylibrary.buildRegistrationJSONBody
 import org.aesirlab.mylibrary.buildRegistrationRequest
 import org.aesirlab.mylibrary.getOidcProviderFromWebIdDoc
-import org.skCompiler.generatedModel.AuthTokenStore
+import com.example.solidfit.data.AuthTokenStore
 
 @Composable
 fun StartAuthScreen(
