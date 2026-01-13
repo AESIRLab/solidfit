@@ -202,7 +202,7 @@ fun AddEditWorkoutScreen(
                     0.73f)),
                 onClick = { mediaLauncher.launch(arrayOf("image/*")) }
             ) {
-                Text(if (mediaUri.toString() == "") "Select Photo" else "Change Photo")
+                Text(if (mediaUri == "") "Select Photo" else "Change Photo")
             }
 
             // Remove button

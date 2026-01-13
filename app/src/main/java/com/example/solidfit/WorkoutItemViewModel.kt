@@ -71,6 +71,10 @@ class WorkoutItemViewModel(
         return remoteDataSource.remoteAccessible()
     }
 
+    private fun isLocalContentUri(uri: String): Boolean =
+        uri.startsWith("content", ignoreCase = true)
+
+
     fun setRemoteRepositoryData(
         accessToken: String,
         signingJwk: String,
@@ -149,7 +153,7 @@ class WorkoutItemViewModel(
                 }
 
                 if (!prepared.mediaUri.startsWith("content", true) && prepared.mediaUri.isNotBlank()) {
-                    val fullUrl = resolveMediaUrl(prepared.mediaUri) // Get the full https://... URL
+                    val fullUrl = resolveMediaUrl(prepared.mediaUri)
                     if (fullUrl != null) {
                         val loader = application.imageLoader
                         loader.memoryCache?.remove(MemoryCache.Key(fullUrl))
@@ -180,16 +184,68 @@ class WorkoutItemViewModel(
     }
 
     fun delete(item: WorkoutItem) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
+            val mediaToDelete = item.mediaUri
+
             repository.deleteByUri(item.id)
 
             val remaining: List<WorkoutItem> =
-                repository.allWorkoutItemsAsFlow.firstOrNull() ?: emptyList()
+                repository.allWorkoutItemsAsFlow.firstOrNull().orEmpty()
 
-            _allItems.value = remaining.sortedByDescending { it.dateCreated }
+            withContext(Dispatchers.Main) {
+                _allItems.value = remaining
+            }
 
-            remoteDataSource.updateRemoteItemList(remaining)
+            if (remoteDataSource.remoteAccessible()) {
+                remoteDataSource.updateRemoteItemList(remaining)
+            }
+
+            try {
+                deleteRemoteImageIfUnused(mediaToDelete, remaining)
+            } catch (e: Exception) {
+                Log.w("SolidImage", "Error while deleting remote image for workout ${item.id}", e)
+            }
         }
+    }
+
+    private suspend fun deleteRemoteImageIfUnused(
+        deletedMediaUri: String,
+        remainingItems: List<WorkoutItem>
+    ) {
+        if (deletedMediaUri.isBlank()) return
+        if (isLocalContentUri(deletedMediaUri)) return
+
+        val stillReferenced = remainingItems.any { it.mediaUri == deletedMediaUri }
+        if (stillReferenced) return
+
+        if (!remoteDataSource.remoteAccessible()) return
+
+        val fullUrl = resolveMediaUrl(deletedMediaUri) ?: return
+        val at = remoteDataSource.accessToken ?: return
+        val jwk = remoteDataSource.signingJwk ?: return
+
+        val dpop = buildResourceDPoP("DELETE", fullUrl, at, jwk)
+
+        val req = Request.Builder()
+            .url(fullUrl)
+            .header("Authorization", "DPoP $at")
+            .header("DPoP", dpop)
+            .delete()
+            .build()
+
+        val client = getUnsafeOkHttpClient()
+        client.newCall(req).execute().use { resp ->
+            if (!(resp.isSuccessful || resp.code == 404)) {
+                val msg = resp.body?.string().orEmpty()
+                Log.w("SolidImage", "Failed to delete remote image (${resp.code}): $fullUrl $msg")
+            } else {
+                Log.d("SolidImage", "Deleted remote image: $fullUrl")
+            }
+        }
+
+        val loader = application.imageLoader
+        loader.memoryCache?.remove(MemoryCache.Key(fullUrl))
+        loader.diskCache?.remove(fullUrl)
     }
 
     suspend fun updateRemote() {
