@@ -41,6 +41,7 @@ import org.aesirlab.mylibrary.buildRegistrationJSONBody
 import org.aesirlab.mylibrary.buildRegistrationRequest
 import org.aesirlab.mylibrary.getOidcProviderFromWebIdDoc
 import com.example.solidfit.data.AuthTokenStore
+import com.hp.hpl.jena.n3.turtle.TurtleParseException
 
 @Composable
 fun StartAuthScreen(
@@ -55,7 +56,7 @@ fun StartAuthScreen(
     ) {
         val appTitle = "SolidFit"
         var webId by rememberSaveable {
-            mutableStateOf("https://id.inrupt.com/solidev")
+            mutableStateOf("")
         }
 
         Image(
@@ -95,7 +96,15 @@ fun StartAuthScreen(
                     return@launch
                 }
                 val data = response.body!!.string()
-                val oidcProvider = getOidcProviderFromWebIdDoc(data)
+                val oidcProvider = try {
+                    getOidcProviderFromWebIdDoc(data)
+                } catch (e: TurtleParseException) {
+                    onInvalidInput("Invalid WebID input. Please enter your full WebID (e.g., https://id.inrupt.com/username).")
+                    return@launch
+                } catch (e: Exception) {
+                    onInvalidInput(e.message)
+                    return@launch
+                }
                 tokenStore.setOidcProvider(oidcProvider)
 
                 val configRequest = buildConfigRequest(oidcProvider)
