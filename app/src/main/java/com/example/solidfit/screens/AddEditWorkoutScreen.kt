@@ -48,26 +48,37 @@ import coil.compose.SubcomposeAsyncImageContent
 import coil.compose.rememberAsyncImagePainter
 import com.example.solidfit.WorkoutItemViewModel
 import com.example.solidfit.model.WorkoutItem
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import androidx.compose.runtime.mutableLongStateOf
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+
 
 
 @Composable
 fun AddEditWorkoutScreen(
     workout: WorkoutItem? = null,
     viewModel: WorkoutItemViewModel,
-    onSaveWorkout: (String, String, String, String, String, String, String) -> Unit,
+    onSaveWorkout: (String, String, String, String, String, Long, String, String) -> Unit,
     onCancel: () -> Unit
 ) {
     var id by remember { mutableStateOf(workout?.id ?: "") }
     var name by remember { mutableStateOf(workout?.name ?: "") }
-    var quantity by remember { mutableStateOf(workout?.quantity?: "")}
+    var quantity by remember { mutableStateOf(workout?.quantity?: "") }
     var duration by remember { mutableStateOf(workout?.duration?: "") }
     var workoutType by remember { mutableStateOf(workout?.workoutType ?: "") }
-    var notes by remember {mutableStateOf(workout?.notes ?: "")}
+    var datePerformed by remember { mutableLongStateOf(workout?.datePerformed ?: System.currentTimeMillis()) }
+    var notes by remember {mutableStateOf(workout?.notes ?: "") }
     var mediaUri by remember { mutableStateOf(workout?.mediaUri ?: "") }
 
     LaunchedEffect(workout?.mediaUri, workout?.dateModified) {
         mediaUri = workout?.mediaUri ?: ""
     }
+
+    val formatter = remember { SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault()) }
 
     val context = LocalContext.current
     // Used to display image
@@ -132,6 +143,64 @@ fun AddEditWorkoutScreen(
             label = { Text("Notes") },
             modifier = Modifier.fillMaxWidth()
         )
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally)
+        {
+            if(datePerformed != 0L){
+            Text(
+                text = "Performed at:",
+            )
+
+            Text(
+                text = formatter.format(Date(datePerformed))
+            )
+            }
+
+            Button(
+                modifier = Modifier.padding(start = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.hsl(224f, 1f, 0.73f)),
+                onClick = {
+                    val cal = Calendar.getInstance().apply { timeInMillis = datePerformed }
+
+                    DatePickerDialog(
+                        context,
+                        { _, year, month, day ->
+                            val hour = cal.get(Calendar.HOUR_OF_DAY)
+                            val minute = cal.get(Calendar.MINUTE)
+
+                            TimePickerDialog(
+                                context,
+                                { _, h, m ->
+                                    datePerformed = Calendar.getInstance().apply {
+                                        set(Calendar.YEAR, year)
+                                        set(Calendar.MONTH, month)
+                                        set(Calendar.DAY_OF_MONTH, day)
+                                        set(Calendar.HOUR_OF_DAY, h)
+                                        set(Calendar.MINUTE, m)
+                                        set(Calendar.SECOND, 0)
+                                        set(Calendar.MILLISECOND, 0)
+                                    }.timeInMillis
+                                },
+                                hour,
+                                minute,
+                                false
+                            ).show()
+                        },
+                        cal.get(Calendar.YEAR),
+                        cal.get(Calendar.MONTH),
+                        cal.get(Calendar.DAY_OF_MONTH)
+                    ).show()
+                }
+            ) {
+                if (datePerformed != 0L){
+                Text("Change")
+                } else {
+                    Text("Add Date")
+                }
+            }
+        }
 
         if (mediaUri.isNotBlank()) {
             val ctx = LocalContext.current
@@ -245,7 +314,8 @@ fun AddEditWorkoutScreen(
                     0.73f)),
                 onClick = {
                     if (name.isNotBlank()) {
-                        onSaveWorkout(id, name, quantity, duration, workoutType, notes, mediaUri)
+                        onSaveWorkout(id, name, quantity, duration, workoutType, datePerformed, notes, mediaUri
+                        )
                     }
                 },
                 enabled = name.isNotBlank()

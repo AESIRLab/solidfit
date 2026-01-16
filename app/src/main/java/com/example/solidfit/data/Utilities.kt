@@ -55,6 +55,7 @@ public class Utilities {
       val name = safeGetString("name")
       val dateCreated = safeGetLong("dateCreated")
       val dateModified = safeGetLong("dateModified")
+      val datePerformed = safeGetLong("datePerformed")
       val quantity = safeGetString("quantity")
       val duration = safeGetString("duration")
       val heartRate = safeGetLong("heartRate")
@@ -63,7 +64,7 @@ public class Utilities {
       val mediaUri = safeGetString("mediaUri")
 
       return WorkoutItem(id, name, dateCreated, dateModified, quantity, duration, heartRate,
-        workoutType, notes, mediaUri)
+        workoutType, datePerformed, notes, mediaUri)
     }
   }
 }

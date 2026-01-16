@@ -333,7 +333,7 @@ fun UpdateWorkouts(
                         AddEditWorkoutScreen(
                             workout = workoutState,
                             viewModel = viewModel,
-                            onSaveWorkout = { _, name, quantity, duration, workoutType, notes, mediaUri ->
+                            onSaveWorkout = { _, name, quantity, duration, workoutType, datePerformed, notes, mediaUri ->
 
                                 val updated = workout.copy(
                                     name = name,
@@ -341,6 +341,7 @@ fun UpdateWorkouts(
                                     workoutType = workoutType,
                                     quantity = quantity,
                                     duration = duration,
+                                    datePerformed = datePerformed,
                                     notes = notes,
                                     mediaUri = mediaUri
                                 )
@@ -368,17 +369,18 @@ fun UpdateWorkouts(
                 val addWorkoutCoroutineScope = rememberCoroutineScope()
                 AddEditWorkoutScreen(
                     viewModel = viewModel,
-                    onSaveWorkout = { _, name, quantity, duration, workoutType, notes, mediaUri ->
+                    onSaveWorkout = { _, name, quantity, duration, workoutType, datePerformed, notes, mediaUri ->
                         addWorkoutCoroutineScope.launch {
                             viewModel.insert(
                                 WorkoutItem(
                                     id = "",
                                     name = name,
-                                    dateModified = 0,
+                                    dateModified = System.currentTimeMillis(),
                                     quantity = quantity,
                                     duration = duration,
                                     heartRate = 0,
                                     workoutType = workoutType,
+                                    datePerformed = datePerformed,
                                     notes = notes,
                                     mediaUri = mediaUri
                                 )

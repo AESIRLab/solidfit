@@ -82,6 +82,7 @@ data class WorkoutItem(
     var duration: String,
     var heartRate: Long,
     var workoutType: String = "",
+    var datePerformed: Long = System.currentTimeMillis(),
     var notes: String = "",
     var mediaUri: String = ""
 )
@@ -167,12 +168,28 @@ fun WorkoutItem(
                     )
                 }
 
+                // DATE PERFORMED
+                if(workout.datePerformed != 0L) {
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
+                                append("Date: ")
+                            }
+                            append(
+                                SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
+                                    Date(workout.datePerformed)
+                                )
+                            )
+                        }
+                    )
+                }
+
                 // DATE CREATED & MODIFIED
                 Text(
                     text = buildAnnotatedString {
                         withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
                             // Medium weight
-                            append("Date: ")
+                            append("Added: ")
                         }
                         // Normal weight
                         append(
@@ -181,7 +198,7 @@ fun WorkoutItem(
                             ))
                     }
                 )
-                if (workout.dateModified != 0.toLong()) {
+                if (workout.dateModified != workout.dateCreated) {
                     Text(
                         text = buildAnnotatedString {
                             withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {

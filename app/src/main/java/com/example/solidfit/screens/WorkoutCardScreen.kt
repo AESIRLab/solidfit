@@ -4,13 +4,16 @@ import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -58,7 +61,8 @@ fun WorkoutCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 14.dp, end = 14.dp)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center
         ){
             if (workout.mediaUri.isNotBlank()) {
                 val ctx = LocalContext.current
@@ -124,122 +128,99 @@ fun WorkoutCard(
 
 
             // NAME
-            Text(
-                modifier = Modifier.padding(top = 18.dp, bottom = 5.dp),
-                text = buildAnnotatedString {
-                    // Doing this style allows for part of the text to be in the 'Medium' bold style while the data text is normal weight
-                    withStyle(style = SpanStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium)) {
-                        // Medium weight
-                        append("Name:\t\t\t\t\t\t")
-                    }
-                    withStyle(
-                        style = SpanStyle(
-                            fontSize = 18.sp,
-                            textDecoration = TextDecoration.Underline
-                        )
-
-                    ) {
-                        // Normal weight
-                        append(workout.name)
-                    }
-                }
-            )
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 18.dp)
+            ) {
+                Text(
+                    text = "Name:",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.width(110.dp)
+                )
+                Text(
+                    text = workout.name,
+                    fontSize = 18.sp,
+                    textDecoration = TextDecoration.Underline
+                )
+            }
 
             // QUANTITY
             if (workout.quantity.isNotEmpty()) {
-                Text(
-                    modifier = Modifier.padding(bottom = 5.dp),
-                    text = buildAnnotatedString {
-                        withStyle(
-                            style = SpanStyle(
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        ) {
-                            // Medium weight
-                            append("Quantity:\t\t\t")
-                        }
-                        withStyle(
-                            style = SpanStyle(
-                                fontSize = 18.sp
-                            )
-                        ) {
-                            // Normal weight
-                            append("${workout.quantity}")
-                        }
-                    }
-                )
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Quantity:",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.width(110.dp)
+                    )
+                    Text(
+                        text = workout.quantity,
+                        fontSize = 18.sp
+                    )
+                }
             }
 
             // DURATION
             if (workout.duration.isNotEmpty()) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Duration:",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.width(110.dp)
+                    )
+                    Text(
+                        text = "${workout.duration} minutes",
+                        fontSize = 18.sp
+                    )
+                }
+            }
+
+            // DATE CREATED, PERFORMED, & MODIFIED
+            Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    modifier = Modifier.padding(bottom = 5.dp),
-                    text = buildAnnotatedString {
-                        withStyle(
-                            style = SpanStyle(
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        ) {
-                            // Medium weight
-                            append("Duration:\t\t\t")
-                        }
-                        withStyle(
-                            style = SpanStyle(
-                                fontSize = 18.sp
-                            )
-                        ) {
-                            // Normal weight
-                            append("${workout.duration} minutes")
-                        }
-                    }
+                    text = "Created:",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.width(110.dp)
+                )
+                Text(
+                    text = SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
+                        Date(workout.dateCreated)),
+                    fontSize = 18.sp
                 )
             }
 
-            // DATE CREATED & MODIFIED
-            Text(
-                modifier = Modifier.padding(bottom = 5.dp),
-                text = buildAnnotatedString {
-                    withStyle(style = SpanStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium)) {
-                        // Medium weight
-                        append("Date:\t\t\t\t\t\t\t")
-                    }
-                    withStyle(
-                        style = SpanStyle(
-                            fontSize = 18.sp,
-                        )
-                    ) {
-                        // Normal weight
-                        append(
-                            SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
-                                Date(workout.dateCreated)
-                            )
-                        )
-                    }
+            if (workout.datePerformed != 0L) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Performed:",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.width(110.dp)
+                    )
+                    Text(
+                        text = SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
+                            Date(workout.datePerformed)),
+                        fontSize = 18.sp
+                    )
                 }
-            )
-            if (workout.dateModified != 0.toLong()) {
-                Text(
-                    text = buildAnnotatedString {
-                        withStyle(style = SpanStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium)) {
-                            // Medium weight
-                            append("Modified:\t\t\t")
-                        }
-                        withStyle(
-                            style = SpanStyle(
-                                fontSize = 18.sp,
-                            )
-                        ) {
-                            // Normal weight
-                            append(
-                                SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
-                                    Date(workout.dateModified)
-                                )
-                            )
-                        }
-                    }
-                )
+            }
+            if (workout.dateModified != workout.dateCreated) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Modified:",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.width(110.dp)
+                    )
+                    Text(
+                        text = SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
+                            Date(workout.dateModified)),
+                        fontSize = 18.sp
+                    )
+                }
             }
             // NOTES
             if (workout.notes.isNotEmpty()) {
