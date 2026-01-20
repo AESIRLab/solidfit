@@ -1,6 +1,11 @@
 package com.example.solidfit
 
 import android.util.Log
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.navigation.NavController
 import com.nimbusds.jwt.SignedJWT
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -170,3 +175,4 @@ private suspend fun tokenRequest(
 
     return@withContext responseBody
 }
+

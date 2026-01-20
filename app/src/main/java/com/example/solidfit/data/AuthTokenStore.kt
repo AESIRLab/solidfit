@@ -89,6 +89,17 @@ public class AuthTokenStore(
 
   public fun getSigner(): Flow<String> = dataStore.data.map { it[SIGNER] ?: "" }
 
+  suspend fun clearAuth() {
+    dataStore.edit {
+      it[ACCESS_TOKEN] = ""
+      it[ID_TOKEN] = ""
+      it[REFRESH_TOKEN] = ""
+      it[WEB_ID] = ""
+      it[SIGNER] = ""
+      it[TOKEN_EXPIRES_AT] = 0L
+    }
+  }
+
   public companion object {
     public val WEB_ID: Key<String> = stringPreferencesKey("web_id")
 

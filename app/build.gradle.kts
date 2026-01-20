@@ -26,7 +26,7 @@ android {
         minSdk = 30
         targetSdk = 35
         versionCode = 1
-        versionName = "2.1.0"
+        versionName = "2.1.01"
         compileSdkPreview = "VanillaIceCream"
         manifestPlaceholders["appAuthRedirectScheme"] = "com.example.solidfit"
 
@@ -104,6 +104,7 @@ dependencies {
     // jwt utils
     implementation(libs.appauth)
     implementation(libs.play.services.location)
+    implementation(libs.androidx.navigation.compose)
 
     ksp("com.squareup:kotlinpoet:1.14.0")
     ksp("com.squareup:kotlinpoet-ksp:1.12.0")

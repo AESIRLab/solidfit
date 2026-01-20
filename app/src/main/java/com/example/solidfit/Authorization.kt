@@ -165,10 +165,19 @@ fun Authentication(
 
             // SCREEN: UpdateWorkouts
             composable(route = SolidAuthFlowScreen.UpdateWorkouts.name) {
-                UpdateWorkouts(
-                    healthConnectManager = healthConnectManager,
-                    authNavController = navController
-                )
+
+                val context = LocalContext.current
+                val tokenStore = AuthTokenStore(context.applicationContext)
+
+                RequireValidAuthToken(
+                    tokenStore = tokenStore,
+                    navController = navController
+                ) {
+                    UpdateWorkouts(
+                        healthConnectManager = healthConnectManager,
+                        authNavController = navController
+                    )
+                }
             }
         }
     }
