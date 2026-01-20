@@ -119,7 +119,7 @@ fun UpdateWorkouts(
                 val webId = store.getWebId().first()
                 val accessToken = store.getAccessToken().first()
                 val signingJwk = store.getSigner().first()
-                val expirationTime = 2301220800000
+                val expirationTime = store.getTokenExpiresAt().first()
                 viewModel.setRemoteRepositoryData(
                     accessToken = accessToken,
                     signingJwk = signingJwk,

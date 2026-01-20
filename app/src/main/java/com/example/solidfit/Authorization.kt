@@ -27,10 +27,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.example.solidfit.data.AuthTokenStore
+import kotlinx.coroutines.flow.first
 
 
 // All apps screens
 enum class SolidAuthFlowScreen {
+    LandingScreen,
+    UpdateWorkouts,
     AddEditWorkoutScreen,
     WorkoutList,
     WorkoutCardScreen,
@@ -81,10 +84,45 @@ fun Authentication(
         val context = LocalContext.current
         NavHost(
             navController = navController,
-            startDestination = SolidAuthFlowScreen.StartAuthScreen.name,
+            startDestination = SolidAuthFlowScreen.LandingScreen.name,
         ) {
 
-            // SCREEN: Authentication (Starting screen)
+            // SCREEN: Landing Screen
+            composable(route = SolidAuthFlowScreen.LandingScreen.name) {
+                val context = LocalContext.current
+                val tokenStore = AuthTokenStore(context.applicationContext)
+
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    val webId = tokenStore.getWebId().first()
+                    val accessToken = tokenStore.getAccessToken().first()
+                    val signer = tokenStore.getSigner().first()
+                    val expiresAt = tokenStore.getTokenExpiresAt().first()
+
+                    val now = System.currentTimeMillis()
+                    val skew = 60_000L
+
+                    val tokenLooksValid =
+                        webId.isNotBlank() &&
+                                accessToken.isNotBlank() &&
+                                signer.isNotBlank() &&
+                                expiresAt > (now + skew)
+
+                    if (tokenLooksValid) {
+                        navController.navigate(SolidAuthFlowScreen.UpdateWorkouts.name) {
+                            popUpTo(SolidAuthFlowScreen.LandingScreen.name) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    } else {
+                        navController.navigate(SolidAuthFlowScreen.StartAuthScreen.name) {
+                            popUpTo(SolidAuthFlowScreen.LandingScreen.name) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            }
+
+
+            // SCREEN: Start Authentication
             composable(route = SolidAuthFlowScreen.StartAuthScreen.name) {
                 StartAuthScreen(
                     tokenStore = tokenStore,
@@ -118,11 +156,19 @@ fun Authentication(
                 deepLinks = listOf(navDeepLink { uriPattern = "app://www.solid-oidc.com/callback"})
             ) {
                 AuthCompleteScreen(tokenStore = tokenStore) {
-                    UpdateWorkouts(
-                        healthConnectManager = healthConnectManager,
-                        authNavController = navController
-                    )
+                    navController.navigate(SolidAuthFlowScreen.UpdateWorkouts.name) {
+                        popUpTo(SolidAuthFlowScreen.AuthCompleteScreen.name) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
+            }
+
+            // SCREEN: UpdateWorkouts
+            composable(route = SolidAuthFlowScreen.UpdateWorkouts.name) {
+                UpdateWorkouts(
+                    healthConnectManager = healthConnectManager,
+                    authNavController = navController
+                )
             }
         }
     }

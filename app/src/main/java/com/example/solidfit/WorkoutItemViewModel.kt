@@ -61,7 +61,11 @@ class WorkoutItemViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             repository.allWorkoutItemsAsFlow.collect { list ->
                 withContext(Dispatchers.Main) {
-                    _allItems.value = list.distinctBy { it.id }.sortedByDescending { it.dateCreated }
+                    _allItems.value = list
+                        .distinctBy { it.id }
+                        .sortedByDescending { workout ->
+                            if (workout.datePerformed != 0L) workout.datePerformed else workout.dateCreated
+                        }
                 }
             }
         }

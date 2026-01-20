@@ -70,6 +70,8 @@ private suspend fun preliminaryAuth(tokenStore: AuthTokenStore, code: String?)  
 
         try {
             val jwtObject = SignedJWT.parse(idToken)
+            val expMillis = jwtObject.jwtClaimsSet.expirationTime?.time ?: 0L
+            tokenStore.setTokenExpiresAt(expMillis)
             val body = jwtObject.payload
             val jsonBody = JSONObject(body.toJSONObject())
             val webId = jsonBody.getString("webid")

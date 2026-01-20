@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.Preferences.Key
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import kotlin.String
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -61,6 +62,13 @@ public class AuthTokenStore(
     dataStore.edit { it[CODE_VERIFIER] = codeVerifier }
   }
 
+  public fun getTokenExpiresAt(): Flow<Long> =
+    dataStore.data.map { it[TOKEN_EXPIRES_AT] ?: 0L }
+
+  public suspend fun setTokenExpiresAt(expiresAtMillis: Long) {
+    dataStore.edit { it[TOKEN_EXPIRES_AT] = expiresAtMillis }
+  }
+
   public fun getCodeVerifier(): Flow<String> = dataStore.data.map { it[CODE_VERIFIER] ?: "" }
 
   public suspend fun setOidcProvider(oidcProvider: String) {
@@ -89,6 +97,8 @@ public class AuthTokenStore(
     public val REFRESH_TOKEN: Key<String> = stringPreferencesKey("refresh_token")
 
     public val ID_TOKEN: Key<String> = stringPreferencesKey("id_token")
+
+    public val TOKEN_EXPIRES_AT = longPreferencesKey("token_expires_at")
 
     public val CLIENT_ID: Key<String> = stringPreferencesKey("client_id")
 
