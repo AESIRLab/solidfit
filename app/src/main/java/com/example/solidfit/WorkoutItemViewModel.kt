@@ -39,11 +39,16 @@ import java.util.Date
 import java.util.UUID
 import coil.memory.MemoryCache
 import coil.imageLoader
+import com.example.solidfit.data.AuthTokenStore
+import com.example.solidfit.tryRefreshTokens
+import kotlinx.coroutines.flow.firstOrNull
+
 
 
 class WorkoutItemViewModel(
     private val repository: WorkoutItemRepository,
     private val remoteDataSource: WorkoutItemRemoteDataSource,
+    private val tokenStore: AuthTokenStore,
     private val application: Application
 ): ViewModel() {
 
@@ -129,9 +134,7 @@ class WorkoutItemViewModel(
 
             _allItems.value = merged.sortedByDescending { it.dateCreated }
 
-            if (remoteDataSource.remoteAccessible()) {
-                remoteDataSource.updateRemoteItemList(merged)
-            }
+            pushRemoteWithRefreshRetry(merged)
         }
     }
 
@@ -179,7 +182,7 @@ class WorkoutItemViewModel(
                         }
                     }
 
-                    remoteDataSource.updateRemoteItemList(sanitized)
+                    pushRemoteWithRefreshRetry(sanitized)
                 }
             } catch (t: Throwable) {
                 Log.e("WorkoutViewModel", "Failed to insert and sync workout.", t)
@@ -200,9 +203,7 @@ class WorkoutItemViewModel(
                 _allItems.value = remaining
             }
 
-            if (remoteDataSource.remoteAccessible()) {
-                remoteDataSource.updateRemoteItemList(remaining)
-            }
+            pushRemoteWithRefreshRetry(remaining)
 
             try {
                 deleteRemoteImageIfUnused(mediaToDelete, remaining)
@@ -256,7 +257,7 @@ class WorkoutItemViewModel(
         if (!remoteDataSource.remoteAccessible()) return
         val list = repository.allWorkoutItemsAsFlow.firstOrNull().orEmpty()
         val sanitized = sanitizeForPod(list)
-        remoteDataSource.updateRemoteItemList(sanitized)
+        pushRemoteWithRefreshRetry(sanitized)
     }
 
     fun update(item: WorkoutItem) {
@@ -309,7 +310,7 @@ class WorkoutItemViewModel(
                             sanitized.add(workout)
                         }
                     }
-                    remoteDataSource.updateRemoteItemList(sanitized)
+                    pushRemoteWithRefreshRetry(sanitized)
                 }
 
             } catch (t: Throwable) {
@@ -620,16 +621,50 @@ class WorkoutItemViewModel(
                 _workoutItem.value = null
             }
         }
-
     }
+
+    private suspend fun pushRemoteWithRefreshRetry(items: List<WorkoutItem>) {
+        if (!remoteDataSource.remoteAccessible()) return
+
+        try {
+            remoteDataSource.updateRemoteItemList(items)
+            return
+        } catch (e: Exception) {
+            // First failure: attempt refresh then retry once
+            Log.w("WorkoutViewModel", "Remote update failed, attempting refresh+retry", e)
+        }
+
+        val refreshed = tryRefreshTokens(tokenStore)
+        if (!refreshed) {
+            Log.w("WorkoutViewModel", "Refresh failed; remote update will be retried later")
+            return
+        }
+
+        val newAccessToken = tokenStore.getAccessToken().firstOrNull()
+        val newExp = tokenStore.getTokenExpiresAt().firstOrNull()
+
+        if (!newAccessToken.isNullOrBlank()) remoteDataSource.accessToken = newAccessToken
+        if (newExp != null && newExp > 0L) remoteDataSource.expirationTime = newExp
+
+        try {
+            remoteDataSource.updateRemoteItemList(items)
+        } catch (e2: Exception) {
+            Log.e("WorkoutViewModel", "Remote update still failed after refresh", e2)
+            // Don't crash; keep local data. You can queue a retry if you want.
+        }
+    }
+
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application = (this[APPLICATION_KEY] as WorkoutItemSolidApplication)
                 val itemRepository = application.repository
-                val itemRemoteDataSource = WorkoutItemRemoteDataSource(externalScope = CoroutineScope(SupervisorJob() + Dispatchers.Default))
-                WorkoutItemViewModel(itemRepository, itemRemoteDataSource, application)
+                val itemRemoteDataSource = WorkoutItemRemoteDataSource(
+                    externalScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+                )
+                val tokenStore = com.example.solidfit.data.AuthTokenStore(application.applicationContext)
+                WorkoutItemViewModel(itemRepository, itemRemoteDataSource, tokenStore, application)
             }
         }
     }

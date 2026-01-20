@@ -33,6 +33,113 @@ import java.security.MessageDigest
 import java.util.Date
 import java.util.UUID
 
+private const val REFRESH_TAG = "TokenRefresh"
+
+// DPoP proof for the token endpoint (no "ath" needed here)
+private fun buildTokenEndpointDPoP(method: String, url: String, signerJwk: String): String {
+    val ec = ECKey.parse(signerJwk)
+    val signer = ECDSASigner(ec.toECPrivateKey())
+
+    val header = JWSHeader.Builder(JWSAlgorithm.ES256)
+        .type(JOSEObjectType("dpop+jwt"))
+        .jwk(ec.toPublicJWK())
+        .build()
+
+    val claims = JWTClaimsSet.Builder()
+        .jwtID(UUID.randomUUID().toString())
+        .issueTime(Date())
+        .claim("htu", url)
+        .claim("htm", method.uppercase())
+        .build()
+
+    val jwt = SignedJWT(header, claims)
+    jwt.sign(signer)
+    return jwt.serialize()
+}
+
+suspend fun tryRefreshTokens(tokenStore: AuthTokenStore): Boolean = withContext(Dispatchers.IO) {
+    try {
+        val refreshToken = tokenStore.getRefreshToken().first()
+        if (refreshToken.isBlank()) {
+            Log.d(REFRESH_TAG, "No refresh_token stored")
+            return@withContext false
+        }
+
+        val tokenUrl = tokenStore.getTokenUri().first()
+        val clientId = tokenStore.getClientId().first()
+        val clientSecret = tokenStore.getClientSecret().first().takeIf { it.isNotBlank() }
+        val signerJwk = tokenStore.getSigner().first()
+
+        if (tokenUrl.isBlank() || clientId.isBlank() || signerJwk.isBlank()) {
+            Log.d(REFRESH_TAG, "Missing tokenUrl/clientId/signerJwk")
+            return@withContext false
+        }
+
+        val bodyBuilder = FormBody.Builder()
+            .add("grant_type", "refresh_token")
+            .add("refresh_token", refreshToken)
+            .add("client_id", clientId)
+
+        if (clientSecret != null) {
+            bodyBuilder.add("client_secret", clientSecret)
+        }
+
+        val request = Request.Builder()
+            .url(tokenUrl)
+            .addHeader("Accept", "*/*")
+            .addHeader("Content-Type", "application/x-www-form-urlencoded")
+            .addHeader("DPoP", buildTokenEndpointDPoP("POST", tokenUrl, signerJwk))
+            .post(bodyBuilder.build())
+            .build()
+
+        val response = getUnsafeOkHttpClient().newCall(request).execute()
+        val responseBody = response.body?.string().orEmpty()
+
+        if (!response.isSuccessful) {
+            Log.d(REFRESH_TAG, "Refresh failed ${response.code}: $responseBody")
+            return@withContext false
+        }
+
+        val json = JSONObject(responseBody)
+
+        val newAccessToken = json.optString("access_token")
+        if (newAccessToken.isBlank()) return@withContext false
+        tokenStore.setAccessToken(newAccessToken)
+
+        // Refresh token may rotate; keep old if missing
+        val newRefreshToken = json.optString("refresh_token")
+        if (newRefreshToken.isNotBlank()) tokenStore.setRefreshToken(newRefreshToken)
+
+        val now = System.currentTimeMillis()
+
+        // expires_in is seconds
+        val expiresInSec = json.optLong("expires_in", 0L)
+        if (expiresInSec > 0L) {
+            tokenStore.setTokenExpiresAt(now + expiresInSec * 1000L)
+        }
+
+        // If id_token present, prefer its exp
+        val newIdToken = json.optString("id_token")
+        if (newIdToken.isNotBlank()) {
+            tokenStore.setIdToken(newIdToken)
+
+            runCatching {
+                val jwt = SignedJWT.parse(newIdToken)
+                val expMillis = jwt.jwtClaimsSet.expirationTime?.time ?: 0L
+                if (expMillis > 0L) tokenStore.setTokenExpiresAt(expMillis)
+
+                val webId = JSONObject(jwt.payload.toJSONObject()).optString("webid")
+                if (webId.isNotBlank()) tokenStore.setWebId(webId)
+            }
+        }
+
+        Log.d(REFRESH_TAG, "Refresh succeeded, expiresAt updated")
+        true
+    } catch (e: Exception) {
+        Log.d(REFRESH_TAG, "Refresh exception: ${e.message}")
+        false
+    }
+}
 
 fun buildResourceDPoP(method: String, url: String, accessToken: String, signerJwk: String): String {
     val ec = ECKey.parse(signerJwk)

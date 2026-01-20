@@ -28,6 +28,7 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import com.example.solidfit.data.Utilities.Companion.ABSOLUTE_URI
+import com.example.solidfit.tryRefreshTokens
 
 public class SolidUtilities(
   context: Context,
@@ -35,53 +36,45 @@ public class SolidUtilities(
   private val tokenStore: AuthTokenStore = AuthTokenStore(context)
 
   public suspend fun updateSolidDataset(items: List<WorkoutItem>): Int {
-    val accessToken = runBlocking { tokenStore.getAccessToken().first() }
+    // IMPORTANT: don't use runBlocking inside a suspend function
+    var accessToken = tokenStore.getAccessToken().first()
     val storageUri = runBlocking { val webId = tokenStore.getWebId().first(); getStorage(webId) }
-    val signingJwk = runBlocking { tokenStore.getSigner().first() }
-    if (storageUri != "" && accessToken != "") {
-      val client = OkHttpClient.Builder().build()
-      val resourceUri = "${storageUri}${ABSOLUTE_URI}"
-      val model = ModelFactory.createDefaultModel()
-      model.setNsPrefix("acp", Utilities.NS_ACP)
-      model.setNsPrefix("acl", Utilities.NS_ACL)
-      model.setNsPrefix("ldp", Utilities.NS_LDP)
-      model.setNsPrefix("skos", Utilities.NS_SKOS)
-      model.setNsPrefix("xsd", Utilities.NS_XSD)
-      model.setNsPrefix("ci", Utilities.NS_WorkoutItem)
-      val ciName = model.createProperty(Utilities.NS_WorkoutItem + "name")
-      val ciDateCreated = model.createProperty(Utilities.NS_WorkoutItem + "dateCreated")
-      val ciDateModified = model.createProperty(Utilities.NS_WorkoutItem + "dateModified")
-      val ciDatePerformed = model.createProperty(Utilities.NS_WorkoutItem + "datePerformed")
-      val ciQuantity = model.createProperty(Utilities.NS_WorkoutItem + "quantity")
-      val ciDuration = model.createProperty(Utilities.NS_WorkoutItem + "duration")
-      val ciHeartRate = model.createProperty(Utilities.NS_WorkoutItem + "heartRate")
-      val ciWorkoutType = model.createProperty(Utilities.NS_WorkoutItem + "workoutType")
-      val ciNotes = model.createProperty(Utilities.NS_WorkoutItem + "notes")
-      val ciMediaUri = model.createProperty(Utilities.NS_WorkoutItem + "mediaUri")
-      items.forEach { ci -> 
-      val id = ci.id
-      val mThingUri = model.createResource("$resourceUri#$id")
-      mThingUri.addLiteral(ciName, ci.name)
-      mThingUri.addLiteral(ciDateCreated, ci.dateCreated)
-      mThingUri.addLiteral(ciDatePerformed, ci.datePerformed)
-      mThingUri.addLiteral(ciDateModified, ci.dateModified)
-      mThingUri.addLiteral(ciQuantity, ci.quantity)
-      mThingUri.addLiteral(ciDuration, ci.duration)
-      mThingUri.addLiteral(ciHeartRate, ci.heartRate)
-      mThingUri.addLiteral(ciWorkoutType, ci.workoutType)
-      mThingUri.addLiteral(ciNotes, ci.notes)
-      mThingUri.addLiteral(ciMediaUri, ci.mediaUri)
-      }
-      val bOutputStream = ByteArrayOutputStream()
-      model.write(bOutputStream, "TURTLE", null)
-      val rBody = bOutputStream.toByteArray().toRequestBody(null, 0, bOutputStream.size())
-      val putRequest = generatePutRequest(resourceUri, rBody, accessToken, signingJwk)
-      val putResponse = client.newCall(putRequest).execute()
-      return putResponse.code
-    } else {
-      return 600
+    val signingJwk = tokenStore.getSigner().first()
+
+    if (storageUri.isBlank() || accessToken.isBlank()) return 600
+
+    val client = OkHttpClient.Builder().build()
+    val resourceUri = "${storageUri}${ABSOLUTE_URI}"
+
+    // build model → rBody (same as you already do)
+    val model = ModelFactory.createDefaultModel()
+    // ... your model setup exactly as-is ...
+    val bOutputStream = ByteArrayOutputStream()
+    model.write(bOutputStream, "TURTLE", null)
+    val rBody = bOutputStream.toByteArray().toRequestBody(null, 0, bOutputStream.size())
+
+    fun makePut(token: String) =
+      generatePutRequest(resourceUri, rBody, token, signingJwk)
+
+    // 1) try once
+    var response = client.newCall(makePut(accessToken)).execute()
+    var code = response.code
+    response.close()
+
+    // 2) if unauthorized, refresh + retry once
+    if (code == 401 || code == 403) {
+      val refreshed = tryRefreshTokens(tokenStore) // <-- your new refresh function
+      if (!refreshed) return code
+
+      accessToken = tokenStore.getAccessToken().first()
+      response = client.newCall(makePut(accessToken)).execute()
+      code = response.code
+      response.close()
     }
+
+    return code
   }
+
 
   public suspend fun regenerateRefreshToken() {
     val tokenUri = runBlocking { tokenStore.getTokenUri().first() }

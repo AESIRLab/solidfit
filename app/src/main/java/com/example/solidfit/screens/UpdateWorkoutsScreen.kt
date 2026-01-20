@@ -93,6 +93,11 @@ fun UpdateWorkouts(
     val viewModel: WorkoutItemViewModel = viewModel(
         factory = WorkoutItemViewModel.Factory
     )
+    val webId by store.getWebId().collectAsState(initial = "")
+    val accessToken by store.getAccessToken().collectAsState(initial = "")
+    val signingJwk by store.getSigner().collectAsState(initial = "")
+    val expirationTime by store.getTokenExpiresAt().collectAsState(initial = 0L)
+
     // Used for bottom bar navigation
     val bottomBarScreens = listOf(
         SolidAuthFlowScreen.WorkoutList.name,
@@ -113,23 +118,39 @@ fun UpdateWorkouts(
         BottomNavItem.Settings,
     )
 
-    LaunchedEffect(Unit) {
-        coroutineScope.launch {
-            withContext(Dispatchers.IO) {
-                val webId = store.getWebId().first()
-                val accessToken = store.getAccessToken().first()
-                val signingJwk = store.getSigner().first()
-                val expirationTime = store.getTokenExpiresAt().first()
-                viewModel.setRemoteRepositoryData(
-                    accessToken = accessToken,
-                    signingJwk = signingJwk,
-                    webId = webId,
-                    expirationTime = expirationTime
-                )
-                viewModel.updateWebId(webId)
-            }
-        }
+    LaunchedEffect(webId, accessToken, signingJwk, expirationTime) {
+        if (webId.isBlank() || accessToken.isBlank() || signingJwk.isBlank() || expirationTime <= 0L) return@LaunchedEffect
+
+        viewModel.setRemoteRepositoryData(
+            accessToken = accessToken,
+            signingJwk = signingJwk,
+            webId = webId,
+            expirationTime = expirationTime
+        )
     }
+
+    LaunchedEffect(webId) {
+        if (webId.isBlank()) return@LaunchedEffect
+        viewModel.updateWebId(webId)
+    }
+
+//    LaunchedEffect(Unit) {
+//        coroutineScope.launch {
+//            withContext(Dispatchers.IO) {
+//                val webId = store.getWebId().first()
+//                val accessToken = store.getAccessToken().first()
+//                val signingJwk = store.getSigner().first()
+//                val expirationTime = store.getTokenExpiresAt().first()
+//                viewModel.setRemoteRepositoryData(
+//                    accessToken = accessToken,
+//                    signingJwk = signingJwk,
+//                    webId = webId,
+//                    expirationTime = expirationTime
+//                )
+//                viewModel.updateWebId(webId)
+//            }
+//        }
+//    }
 
     Scaffold(
         topBar = {
