@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
+import com.example.solidfit.R
 import com.example.solidfit.WorkoutItemViewModel
 import com.zybooks.sksolidannotations.SolidAnnotation
 import com.zybooks.soliddaoannotations.SolidDaoAnnotation
@@ -68,10 +70,10 @@ import java.util.Locale
 //)
 //@SolidDbAnnotation
 //@SolidRemoteDataSource
-@SolidAnnotation(
-    "http://www.w3.org/2024/ci/core#",
-    "AndroidApplication/SolidFit"
-)
+//@SolidAnnotation(
+//    "http://www.w3.org/2024/ci/core#",
+//    "AndroidApplication/SolidFit"
+//)
 
 data class WorkoutItem(
     var id: String,
@@ -98,219 +100,139 @@ fun WorkoutItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)
+            .padding(4.dp)
             .clickable { onSelect(workout) },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
     ) {
+        // NAME
+        Text(
+            text = workout.name,
+            color = Color.LightGray,
+            fontSize = 17.sp, fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier
+                .padding(start = 24.dp, end = 20.dp, top = 16.dp, bottom = 4.dp),
+            maxLines = 2,
+        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 12.dp, top = 16.dp, bottom = 16.dp),
+                .padding(start = 16.dp, end = 12.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column (
                 modifier = Modifier
                     .weight(1f)
-                    .padding(end = 16.dp)
+                    .padding(start = 8.dp, end = 8.dp)
             ){
-                // NAME
-                Text(
-                    text = workout.name,
-                    textDecoration = TextDecoration.Underline,
-                    fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 5.dp),
-                    maxLines = 1,
-                )
-
-                // QUANTITY
-                if (workout.quantity.isNotEmpty()) {
-                    Text(
-                        text = buildAnnotatedString {
-                            // Doing this style allows for part of the text to be in the 'Medium' bold style while the data text is normal weight
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
-                                // Medium weight
-                                append("Quantity: ")
-                            }
-                            // Normal weight
-                            append(workout.quantity)
-                        }
-                    )
-                }
-
-                // DURATION
-                if (workout.duration.isNotEmpty()) {
-                    Text(
-                        text = buildAnnotatedString {
-                            // Doing this style allows for part of the text to be in the 'Medium' bold style while the data text is normal weight
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
-                                // Medium weight
-                                append("Duration: ")
-                            }
-                            // Normal weight
-                            append("${workout.duration} minutes")
-                        }
-                    )
-                }
-
-                // WORKOUT TYPE
-                if (workout.workoutType.isNotEmpty()) {
-                    Text(
-                        text = buildAnnotatedString {
-                            // Doing this style allows for part of the text to be in the 'Medium' bold style while the data text is normal weight
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
-                                // Medium weight
-                                append("Workout Type: ")
-                            }
-                            // Normal weight
-                            append(workout.workoutType)
-                        }
-                    )
-                }
 
                 // DATE PERFORMED
                 if(workout.datePerformed != 0L) {
                     Text(
                         text = buildAnnotatedString {
                             withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
-                                append("Date: ")
-                            }
-                            append(
-                                SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
+                                append(
+                                    SimpleDateFormat("EEEE, MMM. d", Locale.getDefault()).format(
                                     Date(workout.datePerformed)
+                                    )
                                 )
+                            }
+                        }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+
+                    if (workout.duration.isNotEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.schedule_24px),
+                                contentDescription = "Duration icon",
+                                modifier = Modifier.padding(end = 5.dp)
+                            )
+
+                            Text(
+                                modifier = Modifier.padding(end = 12.dp),
+                                text = buildAnnotatedString {
+                                    withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
+                                        append(workout.duration)
+                                    }
+                                    append(" min")
+                                }
                             )
                         }
-                    )
-                }
-
-                // DATE CREATED & MODIFIED
-                Text(
-                    text = buildAnnotatedString {
-                        withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
-                            // Medium weight
-                            append("Added: ")
-                        }
-                        // Normal weight
-                        append(
-                            SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
-                                Date(workout.dateCreated)
-                            ))
                     }
-                )
-                if (workout.dateModified != workout.dateCreated) {
+
+                    if (workout.quantity.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.laps_24px),
+                            contentDescription = "Quantity icon",
+                            modifier = Modifier.padding(end = 5.dp)
+                        )
+                        // QUANTITY
+                        Text(
+                            modifier = Modifier.padding(end = 16.dp),
+                            text = buildAnnotatedString {
+                                withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
+                                    // Medium weight
+                                    append(workout.quantity)
+                                }
+                                append(" rep.")
+                            }
+                        )
+                        }
+                    }
+
+                    // TODO: After incorporating heart rate into workout, include avg or range here
+                    // Text("Calories")
+                    // Icon(...)
+
+                }
+
+                // WORKOUT TYPE
+                if (workout.workoutType.isNotEmpty()) {
                     Text(
                         text = buildAnnotatedString {
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
+                            withStyle(style = SpanStyle(fontWeight = FontWeight.ExtraBold, color = Color.LightGray)) {
                                 // Medium weight
-                                append("Modified: ")
+                                append("Exercise")
                             }
-                            // Normal weight
-                            append(
-                                SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
-                                    Date(workout.dateModified)
-                                ))
+                        }
+                    )
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(style = SpanStyle(fontWeight = FontWeight.Normal)) {
+                                // Medium weight
+                                //TODO: Once workout entry is redesigned, changed the "1 x " part to be variable
+                                append("1 x ${ workout.workoutType }")
+                            }
                         }
                     )
                 }
+    }
 
-                // NOTES
-                if (workout.notes.isNotEmpty()) {
-                    Text(
-                        // Truncates the notes if it's too long
-                        maxLines = 3,
-                        text = buildAnnotatedString {
-                            // Doing this style allows for part of the text to be in the 'Medium' bold style while the data text is normal weight
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
-                                // Medium weight
-                                append("Notes: ")
-                            }
-                            withStyle(
-                                style = SpanStyle(
-                                    fontSize = 16.sp,
-                                    fontStyle = FontStyle.Italic,
-                                    fontWeight = FontWeight.Normal,
-
-                                    )
-                            ) {
-                                // Smaller, Italicized, Normal-weight font
-                                append(workout.notes)
-                            }
-                        }
-                    )
-                }
-            }
             Column(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // THUMBNAIL
-                if (workout.mediaUri.isNotBlank()) {
-                    val ctx = LocalContext.current
-                    val model = remember(workout.mediaUri, workout.dateModified) {
-                        val s = workout.mediaUri
-                        when {
-                            s.isBlank() -> null
-                            s.startsWith("content", true) -> Uri.parse(s)
-                            else -> viewModel.buildAuthorizedImageRequest(ctx, s) ?: s
-                        }
-                    }
-
-                    if (model != null) {
-                        SubcomposeAsyncImage(
-                            model = model,
-                            contentDescription = "Workout photo",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(90.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                        ) {
-                            when (painter.state) {
-                                is AsyncImagePainter.State.Loading -> {
-                                    Box(
-                                        modifier = Modifier
-                                            .matchParentSize()
-                                            .background(Color.Gray.copy(alpha = 0.1f)),
-                                        contentAlignment = Alignment.Center
-                                    ) { CircularProgressIndicator(modifier = Modifier.size(24.dp)) }
-                                }
-                                is AsyncImagePainter.State.Error -> {
-                                    Box(
-                                        modifier = Modifier
-                                            .matchParentSize()
-                                            .background(Color.Gray.copy(alpha = 0.1f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Failed to load image",
-                                            tint = Color.Gray
-                                        )
-                                    }
-                                }
-                                else -> SubcomposeAsyncImageContent()
-                            }
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(70.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Gray.copy(alpha = 0.1f))
-                        )
-                    }
-                } else {
-                    Box(modifier = Modifier.size(70.dp))
-                }
-
-                Row(modifier = Modifier.padding(top = 6.dp)) {
+                Row(modifier = Modifier.padding(top = 4.dp)) {
 
                     // EDIT BUTTON
                     IconButton(onClick = { onEdit(workout) }) {
                         Icon(
                             Icons.Filled.Edit,
                             contentDescription = "Edit workout",
-                            tint = Color.Black
+                            tint = Color.LightGray
                         )
                     }
 
@@ -319,7 +241,7 @@ fun WorkoutItem(
                         Icon(
                             Icons.Filled.Delete,
                             contentDescription = "Delete workout",
-                            tint = Color.Black
+                            tint = Color.LightGray
                         )
                     }
                 }

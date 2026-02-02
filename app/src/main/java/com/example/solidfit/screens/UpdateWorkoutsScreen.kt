@@ -134,24 +134,6 @@ fun UpdateWorkouts(
         viewModel.updateWebId(webId)
     }
 
-//    LaunchedEffect(Unit) {
-//        coroutineScope.launch {
-//            withContext(Dispatchers.IO) {
-//                val webId = store.getWebId().first()
-//                val accessToken = store.getAccessToken().first()
-//                val signingJwk = store.getSigner().first()
-//                val expirationTime = store.getTokenExpiresAt().first()
-//                viewModel.setRemoteRepositoryData(
-//                    accessToken = accessToken,
-//                    signingJwk = signingJwk,
-//                    webId = webId,
-//                    expirationTime = expirationTime
-//                )
-//                viewModel.updateWebId(webId)
-//            }
-//        }
-//    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -161,7 +143,6 @@ fun UpdateWorkouts(
                         1f,
                         0.73f
                     ),
-//                    containerColor = MaterialTheme.colorScheme.primary,
                 ),
                 title = {
                     Row (modifier = Modifier
