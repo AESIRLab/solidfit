@@ -32,17 +32,18 @@ import kotlinx.coroutines.flow.first
 
 // All apps screens
 enum class SolidAuthFlowScreen {
-    LandingScreen,
-    UpdateWorkouts,
+    ActiveSessionScreen,
     AddEditWorkoutScreen,
+    AuthCompleteScreen,
+    HeartRateMonitor,
+    LandingScreen,
+    SettingsScreen,
+    StartAuthScreen,
+    WeightMonitor,
     WorkoutList,
     WorkoutCardScreen,
     UnfetchableWebIdScreen,
-    AuthCompleteScreen,
-    StartAuthScreen,
-    HeartRateMonitor,
-    WeightMonitor,
-    SettingsScreen,
+    UpdateWorkouts,
 }
 
 

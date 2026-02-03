@@ -63,6 +63,7 @@ public class WorkoutItemRemoteDataSource(
     val ciWorkoutType = model.createProperty(Utilities.NS_WorkoutItem + "workoutType")
     val ciNotes = model.createProperty(Utilities.NS_WorkoutItem + "notes")
     val ciMediaUri = model.createProperty(Utilities.NS_WorkoutItem + "mediaUri")
+    val ciDetailsJson = model.createProperty(Utilities.NS_WorkoutItem + "detailsJson")
 
     latestList.forEach { ci ->
       val id = ci.id
@@ -77,6 +78,7 @@ public class WorkoutItemRemoteDataSource(
       mThingUri.addLiteral(ciWorkoutType, ci.workoutType)
       mThingUri.addLiteral(ciNotes, ci.notes)
       mThingUri.addLiteral(ciMediaUri, ci.mediaUri)
+      mThingUri.addLiteral(ciDetailsJson, ci.detailsJson)
     }
 
     val bOutputStream = ByteArrayOutputStream()

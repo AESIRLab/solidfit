@@ -123,6 +123,19 @@ fun UpdateWorkouts(
         BottomNavItem.Settings,
     )
 
+    val heartSharedVm: InputReadingsViewModel = viewModel(
+        key = "heartSharedVm",
+        factory = InputReadingsViewModelFactory(
+            healthConnectManager = healthConnectManager,
+            appContext = context
+        )
+    )
+
+    LaunchedEffect(heartSharedVm.uiState) {
+        if (heartSharedVm.uiState is InputReadingsViewModel.UiState.Uninitialized) {
+            heartSharedVm.initialLoad()
+        }
+    }
 
     LaunchedEffect(webId, accessToken, signingJwk, expirationTime) {
         if (webId.isBlank() || accessToken.isBlank() || signingJwk.isBlank() || expirationTime <= 0L) return@LaunchedEffect
@@ -218,7 +231,7 @@ fun UpdateWorkouts(
                             FloatingActionButton(
                                 containerColor = Color.hsl(215f, 0.45f, 0.62f),
                                 contentColor = Color(0xFFF8FAFC),
-                                onClick = { navController.navigate(route = SolidAuthFlowScreen.AddEditWorkoutScreen.name) },
+                                onClick = { navController.navigate(SolidAuthFlowScreen.ActiveSessionScreen.name) },
                                 shape = CircleShape,
                                 elevation = FloatingActionButtonDefaults.elevation(
                                     defaultElevation = 0.dp,
@@ -327,6 +340,36 @@ fun UpdateWorkouts(
                 }
             }
 
+            composable(route = SolidAuthFlowScreen.ActiveSessionScreen.name) {
+                ActiveSessionScreen(
+                    heartSharedVm = heartSharedVm,
+                    onStopAndSave = { title, notes, durationSeconds, avgHeartRate, detailsJson ->
+                        coroutineScope.launch {
+                            viewModel.insert(
+                                WorkoutItem(
+                                    id = "",
+                                    name = if (title.isBlank()) "Workout Session" else title,
+                                    dateModified = 0L,
+                                    quantity = "",
+                                    duration = durationSeconds.toString(),
+                                    heartRate = avgHeartRate,
+                                    workoutType = "",
+                                    notes = notes,
+                                    mediaUri = "",
+                                    detailsJson = detailsJson
+                                )
+                            )
+                            saveWorkoutLog(context)
+                            navController.navigate(SolidAuthFlowScreen.WorkoutList.name) {
+                                launchSingleTop = true
+                                popUpTo(SolidAuthFlowScreen.WorkoutList.name) { inclusive = false }
+                            }
+                        }
+                    },
+                    onCancel = { navController.popBackStack() }
+                )
+            }
+
             // SCREEN: Edit workout
             composable(
                 route = "${SolidAuthFlowScreen.AddEditWorkoutScreen.name}/{workoutId}",
@@ -392,7 +435,7 @@ fun UpdateWorkouts(
                                     dateModified = System.currentTimeMillis(),
                                     quantity = quantity,
                                     duration = duration,
-                                    heartRate = 0,
+                                    heartRate = heartSharedVm.currentBpm?.toLong() ?: 0L,
                                     workoutType = workoutType,
                                     datePerformed = datePerformed,
                                     notes = notes,

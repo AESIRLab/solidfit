@@ -56,6 +56,7 @@ class InputReadingsViewModel(
   val devices: List<BluetoothDevice> = _devices
 
   private val _currentBpm = mutableStateOf<Int?>(null)
+  val currentBpmState: MutableState<Int?> = _currentBpm
   val currentBpm: Int? get() = _currentBpm.value
 
   private var selectedDevice: BluetoothDevice? = null

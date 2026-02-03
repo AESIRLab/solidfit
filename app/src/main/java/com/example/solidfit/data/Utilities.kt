@@ -28,29 +28,36 @@ public class Utilities {
       val anonModel = ModelFactory.createDefaultModel()
       val id = resource.uri.split("#")[1]
 
+
       fun safeGetString(propName: String): String {
         val prop = anonModel.createProperty(NS_WorkoutItem + propName)
-        val statement = resource.getProperty(prop)
-        return if (statement != null) {
-          ResourceFactory.createTypedLiteral(statement.`object`).value.toString().split("^^")[0]
-        } else {
+        val statement = resource.getProperty(prop) ?: return ""
+
+        val node = statement.`object`
+        return try {
+          // OLD Jena API
+          node.asNode().literalLexicalForm
+        } catch (e: Exception) {
           ""
         }
       }
 
+
+      android.util.Log.d("PARSE", "detailsJson len=" + safeGetString("detailsJson").length)
+
       fun safeGetLong(propName: String): Long {
         val prop = anonModel.createProperty(NS_WorkoutItem + propName)
-        val statement = resource.getProperty(prop)
-        return if (statement != null) {
-          try {
-            ResourceFactory.createTypedLiteral(statement.`object`).value.toString().split("^^")[0].toLong()
-          } catch (e: NumberFormatException) {
-            0L
-          }
-        } else {
+        val statement = resource.getProperty(prop) ?: return 0L
+
+        val node = statement.`object`
+        return try {
+          node.asNode().literalLexicalForm.toLong()
+        } catch (e: Exception) {
           0L
         }
       }
+
+
 
       val name = safeGetString("name")
       val dateCreated = safeGetLong("dateCreated")
@@ -62,9 +69,22 @@ public class Utilities {
       val workoutType = safeGetString("workoutType")
       val notes = safeGetString("notes")
       val mediaUri = safeGetString("mediaUri")
+      val detailsJson = safeGetString("detailsJson")
 
-      return WorkoutItem(id, name, dateCreated, dateModified, quantity, duration, heartRate,
-        workoutType, datePerformed, notes, mediaUri)
+      return WorkoutItem(
+        id = id,
+        name = name,
+        dateCreated = dateCreated,
+        dateModified = dateModified,
+        datePerformed = datePerformed,
+        quantity = quantity,
+        duration = duration,
+        heartRate = heartRate,
+        workoutType = workoutType,
+        notes = notes,
+        mediaUri = mediaUri,
+        detailsJson = detailsJson
+      )
     }
   }
 }

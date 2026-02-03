@@ -1,30 +1,17 @@
 package com.example.solidfit.model
 
-import android.net.Uri
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import coil.compose.SubcomposeAsyncImage
-import coil.compose.SubcomposeAsyncImageContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -32,34 +19,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImagePainter
-import coil.compose.rememberAsyncImagePainter
 import com.example.solidfit.R
 import com.example.solidfit.WorkoutItemViewModel
-import com.zybooks.sksolidannotations.SolidAnnotation
-import com.zybooks.soliddaoannotations.SolidDaoAnnotation
-import com.zybooks.soliddaoimplannotations.SolidDaoImplAnnotation
-import com.zybooks.soliddbannotations.SolidDbAnnotation
-import com.zybooks.solidrdsannotations.SolidRemoteDataSource
-import com.zybooks.utilities.SolidDefaultTokenStore
-import com.zybooks.utilities.SolidDefaultUtilities
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.solidfit.session.sessionDetailsFromJson
 
 
 //@SolidDefaultTokenStore
@@ -87,7 +60,8 @@ data class WorkoutItem(
     var workoutType: String = "",
     var datePerformed: Long = System.currentTimeMillis(),
     var notes: String = "",
-    var mediaUri: String = ""
+    var mediaUri: String = "",
+    var detailsJson: String = ""
 )
 
 val CardTextPrimary = Color(0xFF1C1F24)
@@ -102,6 +76,17 @@ fun WorkoutItem(
     onEdit: (WorkoutItem) -> Unit,
     onSelect: (WorkoutItem) -> Unit
 ) {
+
+    val isSession = workout.detailsJson.isNotBlank()
+
+    val sessionSummary = remember(workout.detailsJson) {
+        if (!isSession) null
+        else runCatching { sessionDetailsFromJson(workout.detailsJson) }.getOrNull()
+    }
+
+    val exerciseCount = sessionSummary?.exercises?.size ?: 0
+    val setCount = sessionSummary?.exercises?.sumOf { it.sets.size } ?: 0
+
     Card(
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFFFFFBF5),            // warm paper
@@ -169,66 +154,46 @@ fun WorkoutItem(
                                 modifier = Modifier.padding(end = 5.dp)
                             )
 
-                            Text(
-                                modifier = Modifier.padding(end = 12.dp),
-                                text = buildAnnotatedString {
-                                    withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
-                                        append(workout.duration)
+                            if (workout.duration.toInt() >= 60) {
+                                val minDuration = workout.duration.toInt() / 60
+                                Text(
+                                    modifier = Modifier.padding(end = 12.dp),
+                                    text = buildAnnotatedString {
+                                        withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
+                                            append(minDuration.toString())
+                                        }
+                                        append(" min")
                                     }
-                                    append(" min")
-                                }
-                            )
+                                )
+                            }
+                            else {
+                                Text(
+                                    modifier = Modifier.padding(end = 12.dp),
+                                    text = buildAnnotatedString {
+                                        withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
+                                            append(workout.duration)
+                                        }
+                                        append(" sec")
+                                    }
+                                )
+                            }
                         }
                     }
 
-                    if (workout.quantity.isNotEmpty()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.laps_24px),
-                            contentDescription = "Quantity icon",
-                            modifier = Modifier.padding(end = 5.dp)
-                        )
-                        // QUANTITY
-                        Text(
-                            modifier = Modifier.padding(end = 16.dp),
-                            text = buildAnnotatedString {
-                                withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
-                                    // Medium weight
-                                    append(workout.quantity)
-                                }
-                                append(" rep.")
-                            }
-                        )
+                    // Session summary (only if detailsJson exists)
+                    if (isSession && sessionSummary != null) {
+                        Text(text = "Exercises: $exerciseCount")
+                        Text(text = "Sets: $setCount")
+
+                        if (workout.heartRate > 0) {
+                            Text(text = "Avg HR: ${workout.heartRate}")
                         }
+                    } else {
+                        // Legacy fields
+                        if (workout.quantity.isNotEmpty()) { /* existing quantity UI */ }
+                        if (workout.workoutType.isNotEmpty()) { /* existing workoutType UI */ }
                     }
 
-                    // TODO: After incorporating heart rate into workout, include avg or range here
-                    // Text("Calories")
-                    // Icon(...)
-
-                }
-
-                // WORKOUT TYPE
-                if (workout.workoutType.isNotEmpty()) {
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.ExtraBold, color = CardTextPrimary)) {
-                                // Medium weight
-                                append("Exercise")
-                            }
-                        }
-                    )
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Normal)) {
-                                // Medium weight
-                                //TODO: Once workout entry is redesigned, changed the "1 x " part to be variable
-                                append("1 x ${ workout.workoutType }")
-                            }
-                        }
-                    )
                 }
     }
 
