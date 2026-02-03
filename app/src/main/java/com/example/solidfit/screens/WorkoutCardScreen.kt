@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,8 +20,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -28,24 +33,34 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.ParagraphStyle
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import com.example.solidfit.R
 import com.example.solidfit.WorkoutItemViewModel
 import com.example.solidfit.model.WorkoutItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private val PageBg = Color(0xFF0E1110)              // matches your list screen dark background vibe
+private val CardBg = Color(0xFFFFFBF5)              // warm paper
+private val CardStroke = Color.Black.copy(alpha = 0.10f)
+
+private val TextPrimary = Color(0xFF1C1F24)          // charcoal
+private val TextSecondary = Color(0xFF4B5563)        // slate gray
+private val IconStrong = Color(0xFF374151)           // icon dark
+
+private val ChipBg = Color(0xFFF0E7DA)               // warm muted surface
+private val ChipStroke = Color.Black.copy(alpha = 0.08f)
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
@@ -53,204 +68,308 @@ fun WorkoutCard(
     workout: WorkoutItem,
     viewModel: WorkoutItemViewModel
 ) {
-    Box (
+    Box(
         modifier = Modifier
             .fillMaxHeight()
+            .background(PageBg)
     ) {
-        Column (
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Center
-        ){
-            if (workout.mediaUri.isNotBlank()) {
-                val ctx = LocalContext.current
-                val model = remember(workout.mediaUri, workout.dateModified) {
-                    val s = workout.mediaUri
-                    when {
-                        s.isBlank() -> null
-                        s.startsWith("content", true) -> Uri.parse(s)
-                        else -> viewModel.buildAuthorizedImageRequest(ctx, s) ?: s
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+
+            // ---- HERO IMAGE (if any) ----
+            WorkoutHeroImage(workout = workout, viewModel = viewModel)
+
+            // ---- TITLE + DATE HEADER ----
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = CardBg,
+                    contentColor = TextPrimary
+                ),
+                shape = RoundedCornerShape(18.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, CardStroke, RoundedCornerShape(18.dp))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = workout.name.ifBlank { "Workout" },
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    val performedText = if (workout.datePerformed != 0L) {
+                        SimpleDateFormat("EEEE, MMM d", Locale.getDefault())
+                            .format(Date(workout.datePerformed))
+                    } else {
+                        // fallback to created
+                        SimpleDateFormat("EEEE, MMM d", Locale.getDefault())
+                            .format(Date(workout.dateCreated))
+                    }
+
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = performedText,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // ---- STATS CHIPS ----
+                    StatsRow(workout = workout)
+                }
+            }
+
+            // ---- DETAILS ----
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = CardBg,
+                    contentColor = TextPrimary
+                ),
+                shape = RoundedCornerShape(18.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, CardStroke, RoundedCornerShape(18.dp))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = IconStrong
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Details",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    DetailRow(
+                        label = "Exercise",
+                        value = workout.workoutType.ifBlank { "—" }
+                    )
+
+                    if (workout.quantity.isNotBlank()) {
+                        DetailRow(label = "Quantity", value = "${workout.quantity} reps")
+                    }
+
+                    if (workout.duration.isNotBlank()) {
+                        DetailRow(label = "Duration", value = "${workout.duration} min")
+                    }
+
+                    // Optional (only if you store heart rate)
+                    if (workout.heartRate != 0L) {
+                        DetailRow(label = "Heart rate", value = "${workout.heartRate} bpm")
+                    }
+
+                    val created = SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault())
+                        .format(Date(workout.dateCreated))
+                    DetailRow(label = "Created", value = created)
+
+                    if (workout.dateModified != 0L) {
+                        val modified = SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault())
+                            .format(Date(workout.dateModified))
+                        DetailRow(label = "Modified", value = modified)
                     }
                 }
+            }
 
-                if (model != null) {
-                    SubcomposeAsyncImage(
-                        model = model,
-                        contentDescription = "Workout photo",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .padding(top = 16.dp)
-                            .fillMaxWidth(0.8f)
-                            .height(300.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .align(Alignment.CenterHorizontally)
-                            .border(.7.dp, Color.Black, RoundedCornerShape(8.dp))
-                    ) {
-                        when (painter.state) {
-                            is AsyncImagePainter.State.Loading -> {
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .background(Color.Gray.copy(alpha = 0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) { CircularProgressIndicator(modifier = Modifier.size(24.dp)) }
-                            }
-                            is AsyncImagePainter.State.Error -> {
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .background(Color.Gray.copy(alpha = 0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Failed to load image",
-                                        tint = Color.Gray
-                                    )
-                                }
-                            }
-                            else -> SubcomposeAsyncImageContent()
-                        }
+            // ---- NOTES ----
+            if (workout.notes.isNotBlank()) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = CardBg,
+                        contentColor = TextPrimary
+                    ),
+                    shape = RoundedCornerShape(18.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, CardStroke, RoundedCornerShape(18.dp))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "Notes",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = workout.notes,
+                            fontSize = 16.sp,
+                            color = TextSecondary,
+                            lineHeight = 22.sp
+                        )
                     }
-                } else {
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+        }
+    }
+}
+
+@Composable
+private fun WorkoutHeroImage(
+    workout: WorkoutItem,
+    viewModel: WorkoutItemViewModel
+) {
+    if (workout.mediaUri.isBlank()) return
+
+    val ctx = LocalContext.current
+    val model = remember(workout.mediaUri, workout.dateModified) {
+        val s = workout.mediaUri
+        when {
+            s.isBlank() -> null
+            s.startsWith("content", true) -> Uri.parse(s)
+            else -> viewModel.buildAuthorizedImageRequest(ctx, s) ?: s
+        }
+    }
+
+    if (model == null) return
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(240.dp)
+            .border(1.dp, CardStroke, RoundedCornerShape(20.dp))
+    ) {
+        SubcomposeAsyncImage(
+            model = model,
+            contentDescription = "Workout photo",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            when (painter.state) {
+                is AsyncImagePainter.State.Loading -> {
                     Box(
                         modifier = Modifier
-                            .size(70.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Gray.copy(alpha = 0.1f))
-                    )
+                            .fillMaxWidth()
+                            .background(Color.Black.copy(alpha = 0.06f)),
+                        contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator(modifier = Modifier.size(26.dp)) }
                 }
-            } else {
-                Box(modifier = Modifier.size(70.dp))
-            }
-
-
-            // NAME
-            Row(modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 18.dp)
-            ) {
-                Text(
-                    text = "Name:",
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.width(110.dp)
-                )
-                Text(
-                    text = workout.name,
-                    fontSize = 18.sp,
-                    textDecoration = TextDecoration.Underline
-                )
-            }
-
-            // QUANTITY
-            if (workout.quantity.isNotEmpty()) {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Quantity:",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.width(110.dp)
-                    )
-                    Text(
-                        text = workout.quantity,
-                        fontSize = 18.sp
-                    )
-                }
-            }
-
-            // DURATION
-            if (workout.duration.isNotEmpty()) {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Duration:",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.width(110.dp)
-                    )
-                    Text(
-                        text = "${workout.duration} minutes",
-                        fontSize = 18.sp
-                    )
-                }
-            }
-
-            // DATE CREATED, PERFORMED, & MODIFIED
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Created:",
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.width(110.dp)
-                )
-                Text(
-                    text = SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
-                        Date(workout.dateCreated)),
-                    fontSize = 18.sp
-                )
-            }
-
-            if (workout.datePerformed != 0L) {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Performed:",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.width(110.dp)
-                    )
-                    Text(
-                        text = SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
-                            Date(workout.datePerformed)),
-                        fontSize = 18.sp
-                    )
-                }
-            }
-            if (workout.dateModified != workout.dateCreated) {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Modified:",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.width(110.dp)
-                    )
-                    Text(
-                        text = SimpleDateFormat("MM/dd/yyyy: hh:mm a", Locale.getDefault()).format(
-                            Date(workout.dateModified)),
-                        fontSize = 18.sp
-                    )
-                }
-            }
-            // NOTES
-            if (workout.notes.isNotEmpty()) {
-                Text(
-                    text = buildAnnotatedString {
-                        // Doing this style allows for part of the text to be in the 'Medium' bold style while the data text is normal weight
-                        withStyle(style = SpanStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium)) {
-                            // Medium weight
-                            append("Description:")
-                        }
-                    },
-                )
-                Text(
-                    modifier = Modifier.padding(top = 6.dp, bottom = 16.dp),
-                    text = buildAnnotatedString {
-                        // Doubled "withStyle" so I could add lineHeight to only the notes body
-                        withStyle(style = ParagraphStyle(lineHeight = 30.sp)) {
-                            withStyle(
-                                style = SpanStyle(
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Normal
-                                )
-                            ) {
-                                // Smaller, Italicized, Normal-weight font
-                                append("\t\t\t${workout.notes}")
-                            }
-                        }
+                is AsyncImagePainter.State.Error -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.Black.copy(alpha = 0.06f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Failed to load image",
+                            tint = Color.Gray
+                        )
                     }
-                )
+                }
+                else -> SubcomposeAsyncImageContent()
             }
         }
     }
+}
+
+@Composable
+private fun StatsRow(workout: WorkoutItem) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        if (workout.duration.isNotBlank()) {
+            StatChip(
+                icon = painterResource(R.drawable.schedule_24px),
+                label = "${workout.duration} min"
+            )
+        }
+        if (workout.quantity.isNotBlank()) {
+            StatChip(
+                icon = painterResource(R.drawable.laps_24px),
+                label = "${workout.quantity} reps"
+            )
+        }
+        if (workout.workoutType.isNotBlank()) {
+            StatChip(
+                icon = painterResource(R.drawable.assignment_24px),
+                label = workout.workoutType
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatChip(
+    icon: Painter,
+    label: String
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = ChipBg),
+        shape = RoundedCornerShape(999.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier.border(1.dp, ChipStroke, RoundedCornerShape(999.dp))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = icon,
+                contentDescription = null,
+                tint = IconStrong,          // works for vector XML
+                modifier = Modifier.size(18.dp)
+            )
+//            Spacer(Modifier.width(8.dp))
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextSecondary,
+            modifier = Modifier.width(96.dp)
+        )
+        Text(
+            text = value,
+            fontSize = 15.sp,
+            color = TextPrimary
+        )
+    }
+    Spacer(Modifier.height(8.dp))
 }

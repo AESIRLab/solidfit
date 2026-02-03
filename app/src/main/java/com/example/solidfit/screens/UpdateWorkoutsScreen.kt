@@ -9,6 +9,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -73,6 +74,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.navigation.NavHostController
 
 @RequiresApi(Build.VERSION_CODES.S)
@@ -118,6 +123,7 @@ fun UpdateWorkouts(
         BottomNavItem.Settings,
     )
 
+
     LaunchedEffect(webId, accessToken, signingJwk, expirationTime) {
         if (webId.isBlank() || accessToken.isBlank() || signingJwk.isBlank() || expirationTime <= 0L) return@LaunchedEffect
 
@@ -137,34 +143,39 @@ fun UpdateWorkouts(
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.shadow(
+                    elevation = 2.dp
+                ),
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.hsl(
-                        224f,
-                        1f,
-                        0.73f
-                    ),
+                    containerColor = Color.hsl(90f, 0.18f, 0.28f),
+                    titleContentColor = Color(0xFFF5F2EC),
+                    actionIconContentColor = Color(0xFFE6E2D8),
+                    navigationIconContentColor = Color(0xFFE6E2D8)
                 ),
                 title = {
-                    Row (modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(end = 30.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween)
-                    {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 30.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text(
-                            "SolidFit",
+                            text = "SolidFit",
                             fontSize = 26.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color(0xFFF5F2EC)
                         )
+
                         Image(
                             painter = painterResource(id = R.drawable.exercise_white_34dp),
-                            contentDescription = "App logo"
+                            contentDescription = "App logo",
+                            colorFilter = ColorFilter.tint(Color(0xFFE6E2D8))
                         )
                     }
                 }
             )
         },
-        bottomBar = {
+                bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
                     navBarItems.forEach { screen ->
@@ -205,7 +216,8 @@ fun UpdateWorkouts(
                             horizontalArrangement = Arrangement.Center,
                         ) {
                             FloatingActionButton(
-                                containerColor = Color.hsl(224f, 1f, 0.73f, 0.75f),
+                                containerColor = Color.hsl(215f, 0.45f, 0.62f),
+                                contentColor = Color(0xFFF8FAFC),
                                 onClick = { navController.navigate(route = SolidAuthFlowScreen.AddEditWorkoutScreen.name) },
                                 shape = CircleShape,
                                 elevation = FloatingActionButtonDefaults.elevation(

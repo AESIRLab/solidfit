@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -89,6 +90,10 @@ data class WorkoutItem(
     var mediaUri: String = ""
 )
 
+val CardTextPrimary = Color(0xFF1C1F24)
+val CardTextSecondary = Color(0xFF4B5563)
+val CardIconColor = Color(0xFF374151)
+
 @Composable
 fun WorkoutItem(
     workout: WorkoutItem,
@@ -98,6 +103,12 @@ fun WorkoutItem(
     onSelect: (WorkoutItem) -> Unit
 ) {
     Card(
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFFBF5),            // warm paper
+            contentColor = CardTextPrimary,
+            disabledContainerColor = Color(0xFFF0E7DA),
+            disabledContentColor = CardTextPrimary.copy(alpha = 0.4f)
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .padding(4.dp)
@@ -107,7 +118,7 @@ fun WorkoutItem(
         // NAME
         Text(
             text = workout.name,
-            color = Color.LightGray,
+            color = CardTextPrimary,
             fontSize = 17.sp, fontWeight = FontWeight.ExtraBold,
             modifier = Modifier
                 .padding(start = 24.dp, end = 20.dp, top = 16.dp, bottom = 4.dp),
@@ -203,7 +214,7 @@ fun WorkoutItem(
                 if (workout.workoutType.isNotEmpty()) {
                     Text(
                         text = buildAnnotatedString {
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.ExtraBold, color = Color.LightGray)) {
+                            withStyle(style = SpanStyle(fontWeight = FontWeight.ExtraBold, color = CardTextPrimary)) {
                                 // Medium weight
                                 append("Exercise")
                             }
@@ -232,7 +243,7 @@ fun WorkoutItem(
                         Icon(
                             Icons.Filled.Edit,
                             contentDescription = "Edit workout",
-                            tint = Color.LightGray
+                            tint = CardIconColor
                         )
                     }
 
@@ -241,7 +252,7 @@ fun WorkoutItem(
                         Icon(
                             Icons.Filled.Delete,
                             contentDescription = "Delete workout",
-                            tint = Color.LightGray
+                            tint = CardIconColor
                         )
                     }
                 }
