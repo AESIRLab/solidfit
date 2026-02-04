@@ -138,10 +138,6 @@ class ActiveSessionViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(details = current.copy(exercises = exercises))
     }
 
-    /**
-     * Call this whenever you receive a new BPM while recording.
-     * (Screen will do this by watching InputReadingsViewModel.currentBpmState.)
-     */
     fun onHeartRateSample(bpm: Int) {
         val state = _uiState.value
         if (!state.isRecording) return

@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -32,7 +33,7 @@ import com.example.solidfit.WorkoutItemViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.example.solidfit.session.sessionDetailsFromJson
+import com.example.solidfit.data.session.sessionDetailsFromJson
 
 
 //@SolidDefaultTokenStore
@@ -119,7 +120,7 @@ fun WorkoutItem(
             Column (
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 8.dp, end = 8.dp)
+                    .padding(start = 8.dp, end = 8.dp, bottom = 5.dp)
             ){
 
                 // DATE PERFORMED
@@ -151,7 +152,8 @@ fun WorkoutItem(
                             Image(
                                 painter = painterResource(id = R.drawable.schedule_24px),
                                 contentDescription = "Duration icon",
-                                modifier = Modifier.padding(end = 5.dp)
+                                modifier = Modifier.padding(end = 5.dp),
+                                colorFilter = ColorFilter.tint(Color.DarkGray)
                             )
 
                             if (workout.duration.toInt() >= 60) {
@@ -168,7 +170,7 @@ fun WorkoutItem(
                             }
                             else {
                                 Text(
-                                    modifier = Modifier.padding(end = 12.dp),
+                                    modifier = Modifier.padding(end = 22.dp),
                                     text = buildAnnotatedString {
                                         withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
                                             append(workout.duration)
@@ -182,18 +184,65 @@ fun WorkoutItem(
 
                     // Session summary (only if detailsJson exists)
                     if (isSession && sessionSummary != null) {
-                        Text(text = "Exercises: $exerciseCount")
-                        Text(text = "Sets: $setCount")
 
-                        if (workout.heartRate > 0) {
-                            Text(text = "Avg HR: ${workout.heartRate}")
-                        }
+                        Image(
+                            painter = painterResource(id = R.drawable.directions_run_24px),
+                            contentDescription = "Exercise-count icon",
+                            colorFilter = ColorFilter.tint(Color.DarkGray)
+
+                        )
+                        Text(
+                            text = "$exerciseCount ex.",
+                            modifier = Modifier.padding(end = 12.dp),
+                        )
                     } else {
                         // Legacy fields
                         if (workout.quantity.isNotEmpty()) { /* existing quantity UI */ }
                         if (workout.workoutType.isNotEmpty()) { /* existing workoutType UI */ }
                     }
 
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+
+                    if (workout.heartRate > 0) {
+                        Image(
+                            painter = painterResource(id = R.drawable.vital_signs_24dp),
+                            contentDescription = "Heart rate icon",
+                            modifier = Modifier.padding(end = 5.dp)
+                        )
+
+                        Text(
+                            text = "${workout.heartRate} bpm",
+                            modifier = Modifier.padding(end = 12.dp)
+                        )
+                    }
+
+                    if (setCount > 0) {
+                        Image(
+                            painter = painterResource(id = R.drawable.exercise_black_24dp),
+                            contentDescription = "Set-count icon",
+                            modifier = Modifier.padding(end = 5.dp),
+                            colorFilter = ColorFilter.tint(Color.DarkGray)
+                        )
+                    }
+                    if (setCount > 1) {
+                        Text(
+                            text = "$setCount sets",
+                            modifier = Modifier.padding(end = 12.dp),
+                        )
+                    }
+
+                    if (setCount == 1) {
+                        Text(
+                            text = "$setCount set",
+                            modifier = Modifier.padding(end = 12.dp),
+                        )
+                    }
                 }
     }
 

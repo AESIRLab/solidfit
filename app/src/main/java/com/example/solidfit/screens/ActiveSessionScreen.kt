@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.solidfit.healthdata.InputReadingsViewModel
 import com.example.solidfit.session.ActiveSessionViewModel
-import com.example.solidfit.session.toJsonString
+import com.example.solidfit.data.session.toJsonString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

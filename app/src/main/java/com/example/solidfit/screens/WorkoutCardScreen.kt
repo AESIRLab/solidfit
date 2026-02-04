@@ -45,7 +45,7 @@ import coil.compose.SubcomposeAsyncImageContent
 import com.example.solidfit.R
 import com.example.solidfit.WorkoutItemViewModel
 import com.example.solidfit.model.WorkoutItem
-import com.example.solidfit.session.sessionDetailsFromJson
+import com.example.solidfit.data.session.sessionDetailsFromJson
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

@@ -54,11 +54,6 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
         title = "Workout List",
         icon = Icons.AutoMirrored.Filled.List
     )
-    data object HeartMonitor : BottomNavItem(
-        route = SolidAuthFlowScreen.HeartRateMonitor.name,
-        title = "Heart Rate",
-        icon = Icons.Default.Favorite
-    )
     data object WeightMonitor: BottomNavItem(
         route = SolidAuthFlowScreen.WeightMonitor.name,
         title = "Weight Monitor",

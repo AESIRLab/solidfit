@@ -1,5 +1,8 @@
-package com.example.solidfit.session
+package com.example.solidfit.data.session
 
+import com.example.solidfit.session.ExerciseEntry
+import com.example.solidfit.session.SessionDetails
+import com.example.solidfit.session.SetEntry
 import org.json.JSONArray
 import org.json.JSONObject
 

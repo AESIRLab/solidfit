@@ -118,7 +118,6 @@ fun UpdateWorkouts(
     }
     val navBarItems = listOf(
         BottomNavItem.WorkoutList,
-        BottomNavItem.HeartMonitor,
         BottomNavItem.WeightMonitor,
         BottomNavItem.Settings,
     )
@@ -160,7 +159,7 @@ fun UpdateWorkouts(
                     elevation = 2.dp
                 ),
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.hsl(90f, 0.18f, 0.28f),
+                    containerColor = Color(0xFF4A70A9),
                     titleContentColor = Color(0xFFF5F2EC),
                     actionIconContentColor = Color(0xFFE6E2D8),
                     navigationIconContentColor = Color(0xFFE6E2D8)
@@ -390,7 +389,7 @@ fun UpdateWorkouts(
                         AddEditWorkoutScreen(
                             workout = workoutState,
                             viewModel = viewModel,
-                            onSaveWorkout = { _, name, quantity, duration, workoutType, datePerformed, notes, mediaUri ->
+                            onSaveWorkout = { _, name, quantity, duration, workoutType, datePerformed, notes, mediaUri, detailsJson ->
 
                                 val updated = workout.copy(
                                     name = name,
@@ -400,7 +399,8 @@ fun UpdateWorkouts(
                                     duration = duration,
                                     datePerformed = datePerformed,
                                     notes = notes,
-                                    mediaUri = mediaUri
+                                    mediaUri = mediaUri,
+                                    detailsJson = detailsJson
                                 )
 
                                 viewModel.update(updated)
@@ -415,7 +415,8 @@ fun UpdateWorkouts(
                             },
                             onCancel = {
                                 navController.navigate(SolidAuthFlowScreen.WorkoutList.name)
-                            }
+                            },
+                            onStartSession = { navController.navigate( SolidAuthFlowScreen.ActiveSessionScreen.name ) }
                         )
                     }
                 }
@@ -426,7 +427,7 @@ fun UpdateWorkouts(
                 val addWorkoutCoroutineScope = rememberCoroutineScope()
                 AddEditWorkoutScreen(
                     viewModel = viewModel,
-                    onSaveWorkout = { _, name, quantity, duration, workoutType, datePerformed, notes, mediaUri ->
+                    onSaveWorkout = { _, name, quantity, duration, workoutType, datePerformed, notes, mediaUri, detailsJson ->
                         addWorkoutCoroutineScope.launch {
                             viewModel.insert(
                                 WorkoutItem(
@@ -439,7 +440,8 @@ fun UpdateWorkouts(
                                     workoutType = workoutType,
                                     datePerformed = datePerformed,
                                     notes = notes,
-                                    mediaUri = mediaUri
+                                    mediaUri = mediaUri,
+                                    detailsJson = detailsJson
                                 )
                             )
                             saveWorkoutLog(context)
@@ -448,7 +450,8 @@ fun UpdateWorkouts(
                     },
                     onCancel = {
                         navController.navigate(SolidAuthFlowScreen.WorkoutList.name)
-                    }
+                    },
+                    onStartSession = { navController.navigate( SolidAuthFlowScreen.ActiveSessionScreen.name ) }
                 )
             }
 

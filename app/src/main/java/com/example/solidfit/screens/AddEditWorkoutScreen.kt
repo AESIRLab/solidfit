@@ -4,7 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -45,26 +44,37 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
-import coil.compose.rememberAsyncImagePainter
 import com.example.solidfit.WorkoutItemViewModel
 import com.example.solidfit.model.WorkoutItem
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Card
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.text.font.FontWeight
+import com.example.solidfit.data.session.sessionDetailsFromJson
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-
-
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.Card
+import androidx.compose.material3.TextButton
+import com.example.solidfit.data.session.toJsonString
+import com.example.solidfit.session.SessionDetails
+import com.example.solidfit.session.ExerciseEntry
+import com.example.solidfit.session.SetEntry
 
 @Composable
 fun AddEditWorkoutScreen(
     workout: WorkoutItem? = null,
     viewModel: WorkoutItemViewModel,
-    onSaveWorkout: (String, String, String, String, String, Long, String, String) -> Unit,
-    onCancel: () -> Unit
-) {
+    onSaveWorkout: (String, String, String, String, String, Long, String, String, String) -> Unit,
+    onCancel: () -> Unit,
+    onStartSession: () -> Unit
+    ) {
     var id by remember { mutableStateOf(workout?.id ?: "") }
     var name by remember { mutableStateOf(workout?.name ?: "") }
     var quantity by remember { mutableStateOf(workout?.quantity?: "") }
@@ -73,6 +83,15 @@ fun AddEditWorkoutScreen(
     var datePerformed by remember { mutableLongStateOf(workout?.datePerformed ?: System.currentTimeMillis()) }
     var notes by remember {mutableStateOf(workout?.notes ?: "") }
     var mediaUri by remember { mutableStateOf(workout?.mediaUri ?: "") }
+    var detailsJson by remember { mutableStateOf(workout?.detailsJson ?: "") }
+    val isSession = detailsJson.isNotBlank()
+
+    // Editable in-UI model (sessions only)
+    val exercises = remember(detailsJson) {
+        val parsed = runCatching { sessionDetailsFromJson(detailsJson) }.getOrNull()
+        // start empty if parsing fails
+        mutableStateOf(parsed?.exercises ?: emptyList())
+    }
 
     LaunchedEffect(workout?.mediaUri, workout?.dateModified) {
         mediaUri = workout?.mediaUri ?: ""
@@ -100,6 +119,24 @@ fun AddEditWorkoutScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+
+        if (workout == null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Want to record a session?", fontWeight = FontWeight.Bold)
+                    Text("Use session recording to add exercises + sets automatically.")
+                    Spacer(Modifier.height(10.dp))
+                    Button(
+                        onClick = onStartSession,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Start Session") }
+                }
+            }
+        }
+
         // Name field
         OutlinedTextField(
             value = name,
@@ -110,31 +147,38 @@ fun AddEditWorkoutScreen(
                 .padding(top = 10.dp)
         )
 
+
         // Workout Type field
-        OutlinedTextField(
-            value = workoutType,
-            onValueChange = { workoutType = it },
-            label = { Text("Workout Type") },
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (!isSession) {
+            OutlinedTextField(
+                value = workoutType,
+                onValueChange = { workoutType = it },
+                label = { Text("Workout Type") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         // Quantity field
-        OutlinedTextField(
-            value = quantity,
-            onValueChange = { quantity = it },
-            label = { Text("Quantity") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (!isSession) {
+            OutlinedTextField(
+                value = quantity,
+                onValueChange = { quantity = it },
+                label = { Text("Quantity") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         // Duration field
-        OutlinedTextField(
-            value = duration,
-            onValueChange = { duration = it },
-            label = { Text("Duration (mins)") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (!isSession) {
+            OutlinedTextField(
+                value = duration,
+                onValueChange = { duration = it },
+                label = { Text("Duration (mins)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         // Notes field
         OutlinedTextField(
@@ -144,60 +188,63 @@ fun AddEditWorkoutScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally)
-        {
-            if(datePerformed != 0L){
-            Text(
-                text = "Performed at:",
-            )
-
-            Text(
-                text = formatter.format(Date(datePerformed))
-            )
-            }
-
-            Button(
-                modifier = Modifier.padding(start = 8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.hsl(224f, 1f, 0.73f)),
-                onClick = {
-                    val cal = Calendar.getInstance().apply { timeInMillis = datePerformed }
-
-                    DatePickerDialog(
-                        context,
-                        { _, year, month, day ->
-                            val hour = cal.get(Calendar.HOUR_OF_DAY)
-                            val minute = cal.get(Calendar.MINUTE)
-
-                            TimePickerDialog(
-                                context,
-                                { _, h, m ->
-                                    datePerformed = Calendar.getInstance().apply {
-                                        set(Calendar.YEAR, year)
-                                        set(Calendar.MONTH, month)
-                                        set(Calendar.DAY_OF_MONTH, day)
-                                        set(Calendar.HOUR_OF_DAY, h)
-                                        set(Calendar.MINUTE, m)
-                                        set(Calendar.SECOND, 0)
-                                        set(Calendar.MILLISECOND, 0)
-                                    }.timeInMillis
-                                },
-                                hour,
-                                minute,
-                                false
-                            ).show()
-                        },
-                        cal.get(Calendar.YEAR),
-                        cal.get(Calendar.MONTH),
-                        cal.get(Calendar.DAY_OF_MONTH)
-                    ).show()
-                }
+        if (isSession) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp)
             ) {
-                if (datePerformed != 0L){
-                Text("Change")
-                } else {
-                    Text("Add Date")
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Exercises", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Spacer(Modifier.height(10.dp))
+
+                    // Add exercise button
+                    Button(
+                        onClick = {
+                            exercises.value += ExerciseEntry(name = "", sets = emptyList())
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Add Exercise")
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    exercises.value.forEachIndexed { exIndex, ex ->
+                        ExerciseEditorCard(
+                            exercise = ex,
+                            onChangeName = { newName ->
+                                exercises.value = exercises.value.mapIndexed { i, e ->
+                                    if (i == exIndex) e.copy(name = newName) else e
+                                }
+                            },
+                            onRemoveExercise = {
+                                exercises.value = exercises.value.filterIndexed { i, _ -> i != exIndex }
+                            },
+                            onAddSet = {
+                                exercises.value = exercises.value.mapIndexed { i, e ->
+                                    if (i == exIndex) e.copy(sets = e.sets + SetEntry(reps = 0, weight = null, timestamp = System.currentTimeMillis()))
+                                    else e
+                                }
+                            },
+                            onUpdateSet = { setIndex, reps, weight ->
+                                exercises.value = exercises.value.mapIndexed { i, e ->
+                                    if (i != exIndex) e else {
+                                        val newSets = e.sets.mapIndexed { si, s ->
+                                            if (si == setIndex) s.copy(reps = reps, weight = weight) else s
+                                        }
+                                        e.copy(sets = newSets)
+                                    }
+                                }
+                            },
+                            onRemoveSet = { setIndex ->
+                                exercises.value = exercises.value.mapIndexed { i, e ->
+                                    if (i != exIndex) e else e.copy(sets = e.sets.filterIndexed { si, _ -> si != setIndex })
+                                }
+                            }
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+                    }
                 }
             }
         }
@@ -313,8 +360,25 @@ fun AddEditWorkoutScreen(
                     1f,
                     0.73f)),
                 onClick = {
+                    val detailsJsonToSave =
+                        if (isSession) {
+                            val cleaned = exercises.value
+                                .filter { it.name.isNotBlank() } // optional: drop empty exercise names
+                                .map { ex ->
+                                    ex.copy(
+                                        sets = ex.sets.filter { it.reps > 0 } // optional: drop invalid sets
+                                    )
+                                }
+
+                            SessionDetails(exercises = cleaned).toJsonString()
+                        } else {
+                            ""
+                        }
+
                     if (name.isNotBlank()) {
-                        onSaveWorkout(id, name, quantity, duration, workoutType, datePerformed, notes, mediaUri
+                        onSaveWorkout(
+                            id, name, quantity, duration, workoutType, datePerformed, notes, mediaUri,
+                            detailsJsonToSave
                         )
                     }
                 },
@@ -326,3 +390,112 @@ fun AddEditWorkoutScreen(
         }
     }
 }
+@Composable
+private fun ExerciseEditorCard(
+    exercise: ExerciseEntry,
+    onChangeName: (String) -> Unit,
+    onRemoveExercise: () -> Unit,
+    onAddSet: () -> Unit,
+    onUpdateSet: (setIndex: Int, reps: Int, weight: Double?) -> Unit,
+    onRemoveSet: (setIndex: Int) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = exercise.name,
+                    onValueChange = onChangeName,
+                    label = { Text("Exercise name") },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                TextButton(onClick = onRemoveExercise) {
+                    Text("Remove")
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Button(
+                onClick = onAddSet,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Add Set") }
+
+            Spacer(Modifier.height(10.dp))
+
+            exercise.sets.forEachIndexed { setIndex, set ->
+                SetEditorRow(
+                    setNumber = setIndex + 1,
+                    repsInitial = set.reps,
+                    weightInitial = set.weight,
+                    onChange = { reps, weight -> onUpdateSet(setIndex, reps, weight) },
+                    onRemove = { onRemoveSet(setIndex) }
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SetEditorRow(
+    setNumber: Int,
+    repsInitial: Int,
+    weightInitial: Double?,
+    onChange: (reps: Int, weight: Double?) -> Unit,
+    onRemove: () -> Unit
+) {
+    var repsText by remember(repsInitial) { mutableStateOf(if (repsInitial == 0) "" else repsInitial.toString()) }
+    var weightText by remember(weightInitial) { mutableStateOf(weightInitial?.let { stripTrailingZero(it) } ?: "") }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Set $setNumber", modifier = Modifier.width(56.dp))
+
+        Spacer(Modifier.width(8.dp))
+
+        OutlinedTextField(
+            value = repsText,
+            onValueChange = {
+                repsText = it
+                val reps = it.toIntOrNull() ?: 0
+                val weight = weightText.toDoubleOrNull()
+                onChange(reps, weight)
+            },
+            label = { Text("Reps") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f)
+        )
+
+        Spacer(Modifier.width(8.dp))
+
+        OutlinedTextField(
+            value = weightText,
+            onValueChange = {
+                weightText = it
+                val reps = repsText.toIntOrNull() ?: 0
+                val weight = it.toDoubleOrNull()
+                onChange(reps, weight)
+            },
+            label = { Text("Weight (opt)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f)
+        )
+
+        Spacer(Modifier.width(8.dp))
+
+        TextButton(onClick = onRemove) { Text("X") }
+    }
+}
+
+private fun stripTrailingZero(v: Double): String {
+    val i = v.toInt()
+    return if (v == i.toDouble()) i.toString() else v.toString()
+}
+
