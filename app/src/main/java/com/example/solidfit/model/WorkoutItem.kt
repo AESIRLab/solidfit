@@ -161,7 +161,7 @@ fun WorkoutItem(
                                 Text(
                                     modifier = Modifier.padding(end = 12.dp),
                                     text = buildAnnotatedString {
-                                        withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
+                                        withStyle(style = SpanStyle(fontWeight = FontWeight.Normal)) {
                                             append(minDuration.toString())
                                         }
                                         append(" min")
@@ -172,7 +172,7 @@ fun WorkoutItem(
                                 Text(
                                     modifier = Modifier.padding(end = 22.dp),
                                     text = buildAnnotatedString {
-                                        withStyle(style = SpanStyle(fontWeight = FontWeight.Medium)) {
+                                        withStyle(style = SpanStyle(fontWeight = FontWeight.Normal)) {
                                             append(workout.duration)
                                         }
                                         append(" sec")

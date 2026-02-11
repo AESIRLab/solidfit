@@ -42,6 +42,22 @@ import org.aesirlab.mylibrary.buildRegistrationRequest
 import org.aesirlab.mylibrary.getOidcProviderFromWebIdDoc
 import com.example.solidfit.data.AuthTokenStore
 import com.hp.hpl.jena.n3.turtle.TurtleParseException
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import com.example.solidfit.data.RecentWebIdStore
+
 
 @Composable
 fun StartAuthScreen(
@@ -75,10 +91,45 @@ fun StartAuthScreen(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         )
         val context = LocalContext.current
+        val recentStore = remember { RecentWebIdStore(context.applicationContext) }
+        val recentWebIds by recentStore.recentWebIds.collectAsState(initial = emptyList())
+
+        if (recentWebIds.isNotEmpty()) {
+            Column(modifier = Modifier.fillMaxWidth(0.85f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Recent WebIDs", fontWeight = FontWeight.Medium)
+                    TextButton(onClick = {
+                        CoroutineScope(Dispatchers.IO).launch { recentStore.clear() }
+                    }) {
+                        Text("Clear")
+                    }
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                LazyColumn (modifier = Modifier.heightIn(max = 180.dp)) {
+                    items(recentWebIds) { id ->
+                        AssistChip(
+                            onClick = { webId = id },
+                            label = { Text(id) },
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                    }
+                }
+            }
+        }
         StartButton(text = "Start") {
 
             val redirectUris = listOf("app://www.solid-oidc.com/callback")
             CoroutineScope(Dispatchers.IO).launch {
+
+                try {
+                    recentStore.add(webId)
+                } catch (_: Exception) { }
 
                 val client = getUnsafeOkHttpClient()
                 tokenStore.setWebId(webId)

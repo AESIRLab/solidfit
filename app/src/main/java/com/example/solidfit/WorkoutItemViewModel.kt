@@ -61,20 +61,40 @@ class WorkoutItemViewModel(
     private val _isReady = MutableStateFlow(false)
     val isReady: StateFlow<Boolean> = _isReady
 
+    private fun WorkoutItem.sortTime(): Long =
+        if (datePerformed != 0L) datePerformed else dateCreated
+
+    private val workoutComparator =
+        compareByDescending<WorkoutItem> { it.sortTime() }
+            .thenByDescending { it.dateCreated }
+            .thenByDescending { it.dateModified }
+            .thenBy { it.id } // final tie-breaker so order can’t drift
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
             repository.allWorkoutItemsAsFlow.collect { list ->
+                val stable = list
+                    .groupBy { it.id }
+                    .map { (_, items) ->
+                        items.maxWithOrNull(
+                            compareBy<WorkoutItem> { it.dateModified }
+                                .thenBy { if (it.datePerformed != 0L) it.datePerformed else it.dateCreated }
+                        ) ?: items.first()
+                    }
+                    .sortedWith(
+                        compareByDescending<WorkoutItem> { if (it.datePerformed != 0L) it.datePerformed else it.dateCreated }
+                            .thenByDescending { it.dateCreated }
+                            .thenByDescending { it.dateModified }
+                            .thenBy { it.id }
+                    )
+
                 withContext(Dispatchers.Main) {
-                    _allItems.value = list
-                        .distinctBy { it.id }
-                        .sortedByDescending { workout ->
-                            if (workout.datePerformed != 0L) workout.datePerformed else workout.dateCreated
-                        }
+                    _allItems.value = stable
                 }
             }
         }
     }
+
 
     fun remoteIsAvailable(): Boolean {
         return remoteDataSource.remoteAccessible()

@@ -18,7 +18,9 @@ fun WorkoutList(
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
-        items(workouts) { workout ->
+        items(items = workouts,
+            key = { it.id }
+        ) { workout ->
             WorkoutItem(
                 workout = workout,
                 viewModel = viewModel,
