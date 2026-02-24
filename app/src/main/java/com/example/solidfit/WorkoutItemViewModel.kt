@@ -42,7 +42,8 @@ import coil.imageLoader
 import com.example.solidfit.data.AuthTokenStore
 import com.example.solidfit.tryRefreshTokens
 import kotlinx.coroutines.flow.firstOrNull
-
+import com.example.solidfit.data.RecentWebIdStore
+import org.json.JSONObject
 
 
 class WorkoutItemViewModel(
@@ -93,6 +94,19 @@ class WorkoutItemViewModel(
                 }
             }
         }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val app = application as WorkoutItemSolidApplication
+                val recentStore = RecentWebIdStore(app.applicationContext)
+
+                val webIds = app.credentialClient.fetchWebIds()
+                webIds.forEach { recentStore.add(it) }
+
+                Log.d("CredentialManager", "Fetched ${webIds.size} webIds from service")
+            } catch (t: Throwable) {
+                Log.w("CredentialManager", "Failed to fetch webIds from service", t)
+            }
+        }
     }
 
 
@@ -129,6 +143,118 @@ class WorkoutItemViewModel(
             }
         }
     }
+
+    suspend fun storeCredentialsFromServerJson(
+        tokenStore: AuthTokenStore,
+        raw: String
+    ): Boolean {
+        val trimmed = raw.trim()
+
+        if (trimmed.equals("access denied", ignoreCase = true)) return false
+
+        // If server still returns "access granted" without JSON, you can't store anything.
+        if (!trimmed.startsWith("{")) {
+            throw IllegalStateException("Expected JSON credentials, got: $trimmed")
+        }
+
+        val obj = JSONObject(trimmed)
+
+        // Your server payload keys (from the changes you’re making):
+        // status, webId, accessToken, refreshToken, expiresAt, signingKey
+        val status = obj.optString("status")
+        if (status.isNotBlank() && status != "granted") return false
+
+        val webId = obj.getString("webId")
+        val accessToken = obj.getString("accessToken")
+        val expiresAtSeconds = obj.optLong("expiresAt")
+        val expiresAtMs = expiresAtSeconds * 1000L
+        val signingKey = obj.optString("signingKey", "")
+        val refreshToken = obj.optString("refreshToken", "")
+
+        tokenStore.setWebId(webId)
+        tokenStore.setAccessToken(accessToken)
+        tokenStore.setTokenExpiresAt(expiresAtMs)
+
+        if (signingKey.isNotBlank() && signingKey != "null") {
+            tokenStore.setSigner(signingKey)
+        }
+        if (refreshToken.isNotBlank() && refreshToken != "null") {
+            tokenStore.setRefreshToken(refreshToken)
+        }
+
+        return true
+    }
+
+    private fun normalizeWebIdForInrupt(webId: String): String {
+        val w = webId.trim()
+        // If it’s an Inrupt profile without a fragment, use the canonical WebID
+        return if (w.startsWith("https://id.inrupt.com/") && !w.contains("#")) {
+            "$w#me"
+        } else w
+    }
+
+
+    fun requestAccessAndSelectWebId(webId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val app = application as WorkoutItemSolidApplication
+                val tokenStore = AuthTokenStore(app.applicationContext)
+                val recentStore = RecentWebIdStore(app.applicationContext)
+
+                val normalized = normalizeWebIdForInrupt(webId)
+
+                val json = app.credentialClient.requestCredentialsJson(normalized)
+                val obj = JSONObject(json)
+
+                when (obj.optString("status")) {
+                    "granted" -> {
+                        val accessToken = obj.optString("accessToken", "")
+                        if (accessToken.isBlank()) {
+                            Log.e("CredentialManager", "Granted but missing accessToken. Payload=$json")
+                            return@launch
+                        }
+
+                        tokenStore.setAccessToken(accessToken)
+                        val storedWebId = normalizeWebIdForInrupt(obj.optString("webId", normalized))
+                        tokenStore.setWebId(storedWebId)
+
+                        val refresh = obj.optString("refreshToken", "")
+                        if (refresh.isNotBlank() && refresh != "null") {
+                            tokenStore.setRefreshToken(refresh)
+                        }
+
+                        val expiresAtSeconds = obj.optLong("expiresAt", 0L)
+                        if (expiresAtSeconds > 0L) {
+                            val expiresAtMs = expiresAtSeconds * 1000L
+                            tokenStore.setTokenExpiresAt(expiresAtMs)
+                        }
+
+                        val signingKey = obj.optString("signingKey", "")
+                        if (signingKey.isNotBlank() && signingKey != "null") {
+                            tokenStore.setSigner(signingKey)
+                        }
+
+                        // store as "recent"
+                        recentStore.add(normalized)
+
+                        // proceed with your existing workflow
+                        updateWebId(storedWebId)
+                    }
+
+                    "denied" -> {
+                        Log.d("CredentialManager", "Access denied for $normalized")
+                    }
+
+                    else -> {
+                        Log.e("CredentialManager", "Credential manager error: ${obj.optString("message")} payload=$json")
+                    }
+                }
+            } catch (t: Throwable) {
+                Log.e("CredentialManager", "Access request failed", t)
+            }
+        }
+    }
+
 
     fun updateWebId(webId: String) {
         viewModelScope.launch {

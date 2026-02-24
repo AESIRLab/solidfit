@@ -26,7 +26,7 @@ android {
         minSdk = 30
         targetSdk = 35
         versionCode = 1
-        versionName = "2.3.2"
+        versionName = "2.3.3"
         compileSdkPreview = "VanillaIceCream"
         manifestPlaceholders["appAuthRedirectScheme"] = "com.example.solidfit"
 
@@ -64,6 +64,7 @@ android {
     }
     buildFeatures {
         compose = true
+        aidl = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
@@ -77,13 +78,13 @@ android {
     }
 }
 
-val deleteFolder by tasks.registering(Delete::class) {
-    delete(layout.projectDirectory.dir("build"))
-}
-
-tasks.named("preBuild") {
-    dependsOn(deleteFolder)
-}
+//val deleteFolder by tasks.registering(Delete::class) {
+//    delete(layout.projectDirectory.dir("build"))
+//}
+//
+//tasks.named("preBuild") {
+//    dependsOn(deleteFolder)
+//}
 
 val version = "0.0.62-stable"
 dependencies {

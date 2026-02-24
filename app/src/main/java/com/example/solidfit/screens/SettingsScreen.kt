@@ -10,6 +10,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,13 +44,8 @@ fun SettingsScreen(
     // Get the token store, just as you do in other screens
     val tokenStore = remember { AuthTokenStore(context.applicationContext) }
 
-    // Create a state variable to hold the WebID
-    var webId by remember { mutableStateOf<String?>(null) }
-
-    // Fetch the WebID from the DataStore when the screen first loads
-    LaunchedEffect(Unit) {
-        webId = tokenStore.getWebId().firstOrNull()
-    }
+    val webId by tokenStore.getWebId().collectAsState(initial = "")
+    val isSignedIn = webId.isNotBlank()
 
     Column(
         modifier = Modifier
@@ -58,8 +54,6 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
-        val isSignedIn = !webId.isNullOrBlank()
 
         Text(
             text = buildAnnotatedString {
@@ -88,39 +82,17 @@ fun SettingsScreen(
         }
 
         // Sign Out Button
-        Button(
-            onClick = {
-                // Launch a coroutine to clear the DataStore
-                coroutineScope.launch(Dispatchers.IO) {
-                    // Clear all stored authentication data
-                    tokenStore.setAccessToken("")
-                    tokenStore.setIdToken("")
-                    tokenStore.setRefreshToken("")
-                    tokenStore.setWebId("")
-                    tokenStore.setSigner("")
-                    tokenStore.setClientId("")
-                    tokenStore.setClientSecret("")
-                    tokenStore.setCodeVerifier("")
-                    tokenStore.setTokenUri("")
-                    tokenStore.setOidcProvider("")
-                    tokenStore.setRedirectUri("")
-                }
+        Button(onClick = {
+            coroutineScope.launch(Dispatchers.IO) {
+                tokenStore.clearAuth() // if you have this helper, use it
+            }
+            Toast.makeText(context, "Signed out", Toast.LENGTH_SHORT).show()
 
-                // Show toast
-                Toast.makeText(context, "Signed out", Toast.LENGTH_SHORT).show()
-
-                // Navigate back to the very start and clear the back stack
-                navController.navigate(SolidAuthFlowScreen.StartAuthScreen.name) {
-                    popUpTo(navController.graph.findStartDestination().id) {
-                        inclusive = true // Clears the entire app stack
-                    }
-                    launchSingleTop = true // Avoids multiple copies of the login screen
-                }
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.hsl(224f, 1f, 0.73f, 0.75f)
-            )
-        ) {
+            navController.navigate(SolidAuthFlowScreen.CredentialManagerAuthScreen.name) {
+                popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                launchSingleTop = true
+            }
+        }) {
             Text("Sign out")
         }
     }

@@ -147,8 +147,13 @@ fun UpdateWorkouts(
         )
     }
 
-    LaunchedEffect(webId) {
+    val isReady by viewModel.isReady.collectAsState()
+
+    LaunchedEffect(isReady, webId) {
+        if (!isReady) return@LaunchedEffect
         if (webId.isBlank()) return@LaunchedEffect
+
+        // Now that remoteDataSource has token/webid/jwk, fetch + merge
         viewModel.updateWebId(webId)
     }
 

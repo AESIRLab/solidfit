@@ -62,6 +62,12 @@
             <action android:name="org.unifiedpush.android.distributor.REGISTER" />
         </intent>
     </queries>
+    <uses-permission android:name="com.zybooks.solidcredentialmanager.SOLID_CREDENTIALS_PROVIDER" />
+    <!-- Credential manager perms -->
+    <queries >
+        <provider android:authorities="com.zybooks.solidcredentialmanager.contentprovider" />
+        <package android:name="com.zybooks.solidcredentialmanager" />
+    </queries>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!--  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ -->
 

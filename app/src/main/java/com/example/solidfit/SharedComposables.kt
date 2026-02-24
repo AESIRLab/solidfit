@@ -38,11 +38,17 @@ fun RequireValidAuthToken(
     // prevents multiple refresh calls if this recomposes quickly
     val refreshMutex = remember { Mutex() }
 
-    suspend fun forceLogoutToStart() {
-        tokenStore.clearAuth()
-        navController.navigate(SolidAuthFlowScreen.StartAuthScreen.name) {
-            popUpTo(navController.graph.startDestinationId) { inclusive = true }
-            launchSingleTop = true
+    suspend fun forceLogoutToStart(
+        tokenStore: AuthTokenStore,
+        navController: NavController
+    ) {
+        tokenStore.clearAuth() // or whatever you do to invalidate the token
+
+        withContext(Dispatchers.Main) {
+            navController.navigate(SolidAuthFlowScreen.LandingScreen.name) {
+                popUpTo(SolidAuthFlowScreen.LandingScreen.name) { inclusive = true }
+                launchSingleTop = true
+            }
         }
     }
 
@@ -57,7 +63,7 @@ fun RequireValidAuthToken(
             val refreshed = refreshMutex.withLock {
                 withContext(Dispatchers.IO) { tryRefreshTokens(tokenStore) }
             }
-            if (!refreshed) forceLogoutToStart()
+            if (!refreshed) forceLogoutToStart(navController = navController, tokenStore = tokenStore)
             return@LaunchedEffect
         }
 
@@ -69,7 +75,7 @@ fun RequireValidAuthToken(
         val refreshed = refreshMutex.withLock {
             withContext(Dispatchers.IO) { tryRefreshTokens(tokenStore) }
         }
-        if (!refreshed) forceLogoutToStart()
+        if (!refreshed) forceLogoutToStart(navController = navController, tokenStore = tokenStore)
     }
 
     content()
