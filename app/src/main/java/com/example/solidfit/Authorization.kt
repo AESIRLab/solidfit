@@ -154,21 +154,38 @@ private fun LandingGate(
     }
 
     LaunchedEffect(Unit) {
-        val webId = tokenStore.getWebId().first()
-        val accessToken = tokenStore.getAccessToken().first()
-        val signer = tokenStore.getSigner().first()
-        val expiresAt = tokenStore.getTokenExpiresAt().first()
-
         val now = System.currentTimeMillis()
         val skew = 60_000L // 1 minute
 
-        val tokenLooksValid =
-            webId.isNotBlank() &&
+        suspend fun looksValid(): Boolean {
+            val webId = tokenStore.getWebId().first()
+            val accessToken = tokenStore.getAccessToken().first()
+            val signer = tokenStore.getSigner().first()
+            val expiresAt = tokenStore.getTokenExpiresAt().first()
+            return webId.isNotBlank() &&
                     accessToken.isNotBlank() &&
                     signer.isNotBlank() &&
-                    expiresAt > (now + skew)
+                    expiresAt > (System.currentTimeMillis() + skew)
+        }
 
-        if (tokenLooksValid) onValidToken() else onNeedsLogin()
+        if (looksValid()) {
+            onValidToken()
+            return@LaunchedEffect
+        }
+
+        // If not valid, try refresh before forcing login
+        val refreshToken = tokenStore.getRefreshToken().first()
+        val canRefresh = refreshToken.isNotBlank() && refreshToken != "null"
+
+        if (canRefresh) {
+            val refreshed = tryRefreshTokens(tokenStore)
+            if (refreshed && looksValid()) {
+                onValidToken()
+                return@LaunchedEffect
+            }
+        }
+
+        onNeedsLogin()
     }
 }
 
@@ -276,14 +293,15 @@ private fun CredentialManagerLoginScreen(
 
                             val grantedWebId = obj.optString("webId", webId)
                             val accessToken = obj.optString("accessToken")
-                            val refreshToken = obj.optString("refreshToken")
+                            val refreshToken = if (obj.isNull("refreshToken")) "" else obj.optString("refreshToken").trim()
+                            val cleanedRefreshToken = refreshToken.takeIf { it.isNotBlank() && it.lowercase() != "null" } ?: ""
                             val expiresAtSeconds = obj.optLong("expiresAt", 0L)
                             val expiresAtMs = if (expiresAtSeconds > 0L) expiresAtSeconds * 1000L else 0L
                             val signingKey = obj.optString("signingKey")
 
                             tokenStore.setWebId(grantedWebId)
                             tokenStore.setAccessToken(accessToken)
-                            tokenStore.setRefreshToken(refreshToken)
+                            tokenStore.setRefreshToken(cleanedRefreshToken)
                             tokenStore.setTokenExpiresAt(expiresAtMs)
                             tokenStore.setSigner(signingKey)
 
