@@ -63,8 +63,10 @@ public class SolidUtilities(
 
     // 2) if unauthorized, refresh + retry once
     if (code == 401 || code == 403) {
-      val refreshed = tryRefreshTokens(tokenStore) // <-- your new refresh function
-      if (!refreshed) return code
+
+      val newAccessToken = tryRefreshTokens(tokenStore)
+
+      if (newAccessToken == null) return code
 
       accessToken = tokenStore.getAccessToken().first()
       response = client.newCall(makePut(accessToken)).execute()

@@ -58,12 +58,13 @@ fun RequireValidAuthToken(
         val now = System.currentTimeMillis()
         val skew = 60_000L
 
-        // If already expired/near-expired: attempt refresh first
-        if (exp <= 0L || exp <= now + skew) {
+        if (exp <= 0L) return@LaunchedEffect
+
+        if (exp <= now + skew) {
             val refreshed = refreshMutex.withLock {
                 withContext(Dispatchers.IO) { tryRefreshTokens(tokenStore) }
             }
-            if (!refreshed) forceLogoutToStart(navController = navController, tokenStore = tokenStore)
+            if (refreshed == null) forceLogoutToStart(tokenStore, navController)
             return@LaunchedEffect
         }
 
@@ -75,7 +76,7 @@ fun RequireValidAuthToken(
         val refreshed = refreshMutex.withLock {
             withContext(Dispatchers.IO) { tryRefreshTokens(tokenStore) }
         }
-        if (!refreshed) forceLogoutToStart(navController = navController, tokenStore = tokenStore)
+        if (refreshed == null) forceLogoutToStart(navController = navController, tokenStore = tokenStore)
     }
 
     content()

@@ -35,6 +35,22 @@ import java.util.UUID
 
 private const val REFRESH_TAG = "TokenRefresh"
 
+suspend fun discoverTokenEndpoint(issuer: String): String = withContext(Dispatchers.IO) {
+    val base = issuer.trimEnd('/')
+    val wellKnown = "$base/.well-known/openid-configuration"
+
+    return@withContext try {
+        val req = Request.Builder().url(wellKnown).get().build()
+        getUnsafeOkHttpClient().newCall(req).execute().use { resp ->
+            val body = resp.body?.string().orEmpty()
+            if (!resp.isSuccessful) return@use ""
+            JSONObject(body).optString("token_endpoint", "")
+        }
+    } catch (_: Throwable) {
+        ""
+    }
+}
+
 // DPoP proof for the token endpoint (no "ath" needed here)
 private fun buildTokenEndpointDPoP(method: String, url: String, signerJwk: String): String {
     val ec = ECKey.parse(signerJwk)
@@ -57,12 +73,13 @@ private fun buildTokenEndpointDPoP(method: String, url: String, signerJwk: Strin
     return jwt.serialize()
 }
 
-suspend fun tryRefreshTokens(tokenStore: AuthTokenStore): Boolean = withContext(Dispatchers.IO) {
+suspend fun tryRefreshTokens(tokenStore: AuthTokenStore): String? = withContext(Dispatchers.IO) {
     try {
-        val refreshToken = tokenStore.getRefreshToken().first()
+        val refreshTokenRaw = tokenStore.getRefreshToken().first().trim()
+        val refreshToken = refreshTokenRaw.takeIf { it.isNotBlank() && it.lowercase() != "null" } ?: ""
         if (refreshToken.isBlank()) {
             Log.d(REFRESH_TAG, "No refresh_token stored")
-            return@withContext false
+            return@withContext null
         }
 
         val tokenUrl = tokenStore.getTokenUri().first()
@@ -72,13 +89,14 @@ suspend fun tryRefreshTokens(tokenStore: AuthTokenStore): Boolean = withContext(
 
         if (tokenUrl.isBlank() || clientId.isBlank() || signerJwk.isBlank()) {
             Log.d(REFRESH_TAG, "Missing tokenUrl/clientId/signerJwk")
-            return@withContext false
+            return@withContext null
         }
 
         val bodyBuilder = FormBody.Builder()
             .add("grant_type", "refresh_token")
             .add("refresh_token", refreshToken)
             .add("client_id", clientId)
+            .add("scope", "openid webid offline_access") // Add this for safety
 
         if (clientSecret != null) {
             bodyBuilder.add("client_secret", clientSecret)
@@ -97,13 +115,13 @@ suspend fun tryRefreshTokens(tokenStore: AuthTokenStore): Boolean = withContext(
 
         if (!response.isSuccessful) {
             Log.d(REFRESH_TAG, "Refresh failed ${response.code}: $responseBody")
-            return@withContext false
+            return@withContext null
         }
 
         val json = JSONObject(responseBody)
 
         val newAccessToken = json.optString("access_token")
-        if (newAccessToken.isBlank()) return@withContext false
+        if (newAccessToken.isBlank()) return@withContext null
         tokenStore.setAccessToken(newAccessToken)
 
         // Refresh token may rotate; keep old if missing
@@ -134,10 +152,12 @@ suspend fun tryRefreshTokens(tokenStore: AuthTokenStore): Boolean = withContext(
         }
 
         Log.d(REFRESH_TAG, "Refresh succeeded, expiresAt updated")
-        true
+        //TODO: FIX return types
+        return@withContext newAccessToken
+
     } catch (e: Exception) {
         Log.d(REFRESH_TAG, "Refresh exception: ${e.message}")
-        false
+        null
     }
 }
 

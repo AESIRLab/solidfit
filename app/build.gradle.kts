@@ -26,7 +26,7 @@ android {
         minSdk = 30
         targetSdk = 35
         versionCode = 1
-        versionName = "2.3.4"
+        versionName = "2.3.5"
         compileSdkPreview = "VanillaIceCream"
         manifestPlaceholders["appAuthRedirectScheme"] = "com.example.solidfit"
 
@@ -207,6 +207,28 @@ dependencies {
     // Google Health Connect
     implementation(libs.androidx.connect.client.v110)
 
+    implementation(libs.gson)
 
+    androidTestImplementation(libs.androidx.uiautomator)
+    androidTestImplementation("androidx.test:rules:1.5.0")
+
+    // Testing
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.core.testing)
+
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1") {
+        exclude(group = "com.android.support", module = "support-annotations")
+    }
+
+    // Explicitly defining the version bypasses the missing version error
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.0")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:1.6.0")
 }
 
+configurations.all {
+    resolutionStrategy {
+        force("androidx.test.espresso:espresso-core:3.6.1")
+        force("androidx.test.ext:junit:1.2.1")
+    }
+}

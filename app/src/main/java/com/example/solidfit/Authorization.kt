@@ -40,6 +40,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.example.solidfit.screens.StartAuthScreen
+import com.nimbusds.jwt.SignedJWT
+import com.example.solidfit.discoverTokenEndpoint
 
 // All apps screens
 enum class SolidAuthFlowScreen {
@@ -179,7 +181,7 @@ private fun LandingGate(
 
         if (canRefresh) {
             val refreshed = tryRefreshTokens(tokenStore)
-            if (refreshed && looksValid()) {
+            if (refreshed != null && looksValid()) {
                 onValidToken()
                 return@LaunchedEffect
             }
@@ -290,17 +292,52 @@ private fun CredentialManagerLoginScreen(
                                 requestInFlight = false
                                 return@launch
                             }
+                            val returnedClientSecret = obj.optString("clientSecret", "")
 
-                            val grantedWebId = obj.optString("webId", webId)
+                            if (returnedClientSecret.isNotBlank() && returnedClientSecret != "null") {
+                                tokenStore.setClientSecret(returnedClientSecret)
+                            }
+                            val returnedClientId = obj.optString("clientId", "")
+                            val returnedTokenUri = obj.optString("tokenUri", "")
+                            // Save them to your DataStore
+                            if (returnedClientId.isNotBlank() && returnedClientId != "null") {
+                                tokenStore.setClientId(returnedClientId)
+                            }
+                            if (returnedTokenUri.isNotBlank() && returnedTokenUri != "null") {
+                                tokenStore.setTokenUri(returnedTokenUri)
+                            }
+                            val grantedWebIdRaw = obj.optString("webId", webId).trim()
+                            val grantedWebId =
+                                if (grantedWebIdRaw.startsWith("https://id.inrupt.com/") && !grantedWebIdRaw.contains("#"))
+                                    "$grantedWebIdRaw#me"
+                                else grantedWebIdRaw
                             val accessToken = obj.optString("accessToken")
                             val refreshToken = if (obj.isNull("refreshToken")) "" else obj.optString("refreshToken").trim()
                             val cleanedRefreshToken = refreshToken.takeIf { it.isNotBlank() && it.lowercase() != "null" } ?: ""
-                            val expiresAtSeconds = obj.optLong("expiresAt", 0L)
-                            val expiresAtMs = if (expiresAtSeconds > 0L) expiresAtSeconds * 1000L else 0L
+                            val rawExp = obj.optLong("expiresAt", 0L)
+                            val expiresAtMs = when {
+                                rawExp in 1L..9_999_999_999L -> rawExp * 1000L  // seconds -> ms
+                                rawExp > 0L -> rawExp                           // already ms
+                                else -> 0L
+                            }
                             val signingKey = obj.optString("signingKey")
 
                             tokenStore.setWebId(grantedWebId)
                             tokenStore.setAccessToken(accessToken)
+                            runCatching {
+                                val jwt = SignedJWT.parse(accessToken)
+                                val issuer = jwt.jwtClaimsSet.issuer ?: ""
+//                                val clientId = jwt.jwtClaimsSet.getStringClaim("client_id") ?: ""
+//
+//                                if (clientId.isNotBlank()) tokenStore.setClientId(clientId)
+
+                                if (issuer.isNotBlank()) {
+                                    val tokenEndpoint = discoverTokenEndpoint(issuer)
+                                    if (tokenEndpoint.isNotBlank()) tokenStore.setTokenUri(tokenEndpoint)
+                                }
+                            }.onFailure {
+                                Log.w("Authorization", "Failed to derive clientId/tokenUri: ${it.message}")
+                            }
                             tokenStore.setRefreshToken(cleanedRefreshToken)
                             tokenStore.setTokenExpiresAt(expiresAtMs)
                             tokenStore.setSigner(signingKey)

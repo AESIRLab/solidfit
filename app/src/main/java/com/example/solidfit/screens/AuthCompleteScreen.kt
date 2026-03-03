@@ -67,7 +67,7 @@ private suspend fun preliminaryAuth(tokenStore: AuthTokenStore, code: String): B
     val clientSecret = rClientSecret.takeIf { it.isNotBlank() }
 
     val dpop = generateDPoPKey()
-    tokenStore.setSigner(dpop.toJSONObject().toString())
+    tokenStore.setSigner(JSONObject(dpop.toJSONObject()).toString())
 
     val tokenRequest = buildTokenRequest(
         clientId,

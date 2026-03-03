@@ -130,6 +130,13 @@ fun UpdateWorkouts(
         )
     )
 
+    LaunchedEffect(Unit) {
+        Log.d("UpdateWorkouts", "webId=${store.getWebId().first()}")
+        Log.d("UpdateWorkouts", "accessToken blank?=${store.getAccessToken().first().isBlank()}")
+        Log.d("UpdateWorkouts", "signer startsWithJson?=${store.getSigner().first().trim().startsWith("{\"")}")
+        Log.d("UpdateWorkouts", "expiresAt=${store.getTokenExpiresAt().first()}")
+    }
+
     LaunchedEffect(heartSharedVm.uiState) {
         if (heartSharedVm.uiState is InputReadingsViewModel.UiState.Uninitialized) {
             heartSharedVm.initialLoad()

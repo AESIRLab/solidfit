@@ -226,10 +226,13 @@ fun ActiveSessionScreen(
                 enabled = hasAtLeastOneSet,
                 onClick = {
                     val result = sessionVm.stopSession()
+                    //TODO: TESTING-change int to change KB size of workout item
+                    val massiveNotes = generateDummyPayload(2)
                     val detailsJson = result.details.toJsonString()
                     onStopAndSave(
                         result.title,
-                        result.notes,
+                        massiveNotes,
+//                        result.notes,
                         result.durationSeconds,
                         result.avgHeartRate,
                         detailsJson
@@ -306,4 +309,10 @@ private fun formatElapsed(ms: Long): String {
     val minutes = totalSeconds / 60L
     val seconds = totalSeconds % 60L
     return "%d:%02d".format(minutes, seconds)
+}
+
+fun generateDummyPayload(targetKilobytes: Int): String {
+    val bytesNeeded = targetKilobytes * 1024
+    // Creates a string of "A"s exactly that many bytes long
+    return "A".repeat(bytesNeeded)
 }

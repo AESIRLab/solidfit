@@ -1,5 +1,7 @@
 package com.example.solidfit.data
 
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import com.example.solidfit.model.WorkoutItem
 import kotlin.String
 import kotlin.collections.List
@@ -10,6 +12,7 @@ public interface WorkoutItemDao {
 
   public suspend fun delete(uri: String)
 
+  @Insert(onConflict = OnConflictStrategy.IGNORE)
   public suspend fun insert(item: WorkoutItem)
 
   public suspend fun update(item: WorkoutItem)

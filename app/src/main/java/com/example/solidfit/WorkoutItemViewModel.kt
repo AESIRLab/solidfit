@@ -234,8 +234,21 @@ class WorkoutItemViewModel(
                             tokenStore.setSigner(signingKey)
                         }
 
+                        if (signingKey.isBlank() || signingKey == "null" || !signingKey.trim().startsWith("{")) {
+                            Log.e("CredentialManager", "Bad signingKey format (must be JSON JWK). signingKey=$signingKey")
+                            return@launch
+                        }
+
                         // store as "recent"
                         recentStore.add(normalized)
+
+                        // IMPORTANT: prime remoteDataSource so remote fetch/insert works immediately
+                        setRemoteRepositoryData(
+                            accessToken = accessToken,
+                            signingJwk = signingKey,
+                            webId = storedWebId,
+                            expirationTime = if (expiresAtSeconds > 0L) expiresAtSeconds * 1000L else 0L
+                        )
 
                         // proceed with your existing workflow
                         updateWebId(storedWebId)
@@ -261,13 +274,20 @@ class WorkoutItemViewModel(
             try {
                 repository.insertWebId(webId)
             } catch (e: Exception) {
-                repository.resetModel()
+                // Log the conflict, but do NOT reset the model.
+                Log.d("WorkoutItemViewModel", "WebID already exists or insert failed. Proceeding.")
             }
 
-            val remote = if (remoteDataSource.remoteAccessible())
-                remoteDataSource.fetchRemoteItemList()
-            else
-                emptyList()
+            val remote = try {
+                if (remoteDataSource.remoteAccessible()) {
+                    remoteDataSource.fetchRemoteItemList()
+                } else {
+                    emptyList()
+                }
+            } catch (e: Exception) {
+                Log.w("WorkoutItemViewModel", "Remote fetch failed (token likely expired)", e)
+                emptyList() // Return empty so the local data can still load!
+            }
 
             val local = repository.allWorkoutItemsAsFlow.firstOrNull() ?: emptyList()
 
@@ -780,20 +800,23 @@ class WorkoutItemViewModel(
             Log.w("WorkoutViewModel", "Remote update failed, attempting refresh+retry", e)
         }
 
-        val refreshed = tryRefreshTokens(tokenStore)
-        if (!refreshed) {
+        val newAccessToken = tryRefreshTokens(tokenStore)
+
+        if (newAccessToken == null) {
             Log.w("WorkoutViewModel", "Refresh failed; remote update will be retried later")
             return
         }
 
-        val newAccessToken = tokenStore.getAccessToken().firstOrNull()
+        remoteDataSource.accessToken = newAccessToken
+
         val newExp = tokenStore.getTokenExpiresAt().firstOrNull()
 
-        if (!newAccessToken.isNullOrBlank()) remoteDataSource.accessToken = newAccessToken
+//        if (!newAccessToken.isNullOrBlank()) remoteDataSource.accessToken = newAccessToken
         if (newExp != null && newExp > 0L) remoteDataSource.expirationTime = newExp
 
         try {
             remoteDataSource.updateRemoteItemList(items)
+            Log.d("WorkoutViewModel", "Remote update succeeded on retry!")
         } catch (e2: Exception) {
             Log.e("WorkoutViewModel", "Remote update still failed after refresh", e2)
             // Don't crash; keep local data. You can queue a retry if you want.
