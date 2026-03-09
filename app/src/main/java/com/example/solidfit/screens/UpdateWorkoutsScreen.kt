@@ -71,7 +71,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -305,30 +309,39 @@ fun UpdateWorkouts(
                 val workouts by viewModel.allItems.collectAsState(initial = emptyList())
                 val isReady by viewModel.isReady.collectAsState()
 
-                if (isReady) {
-                    WorkoutList(
-                        workouts = workouts,
-                        viewModel = viewModel,
-                        onDeleteWorkout = { workout ->
-                            coroutineScope.launch {
-                                viewModel.delete(workout)
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+
+                    Button(onClick = { viewModel.fetchAllOnceForBenchmark() }) {
+                        Text("Fetch All (RTDB)")
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (isReady) {
+                        WorkoutList(
+                            workouts = workouts,
+                            viewModel = viewModel,
+                            onDeleteWorkout = { workout ->
+                                coroutineScope.launch {
+                                    viewModel.delete(workout)
+                                }
+                            },
+                            onEditWorkout = { workout ->
+                                Log.d("Debug", workout.id)
+                                navController.navigate(route = "${SolidAuthFlowScreen.AddEditWorkoutScreen.name}/${workout.id}")
+                            },
+                            onSelectWorkout = { workout ->
+                                navController.navigate(route = "${SolidAuthFlowScreen.WorkoutCardScreen.name}/${workout.id}")
                             }
-                        },
-                        onEditWorkout = { workout ->
-                            Log.d("Debug", workout.id)
-                            navController.navigate(route = "${SolidAuthFlowScreen.AddEditWorkoutScreen.name}/${workout.id}")
-                        },
-                        onSelectWorkout = { workout ->
-                            navController.navigate(route = "${SolidAuthFlowScreen.WorkoutCardScreen.name}/${workout.id}")
+                        )
+                    }
+                    else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
                         }
-                    )
-                }
-                else {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
                     }
                 }
             }

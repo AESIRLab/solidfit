@@ -18,37 +18,57 @@ class ColdStartAutomatedTest {
     @Test
     fun executeColdStartAndLogin() {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
 
-        // 1. Start from the home screen
         device.pressHome()
 
-        // 2. Launch the app manually
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val intent = context.packageManager.getLaunchIntentForPackage("com.example.workoutroomproject")
-        intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        // Use the instrumentation targetContext for a more stable launch
+        val pkgName = "com.example.solidfit"
+        val context = instrumentation.targetContext
+        val intent = context.packageManager.getLaunchIntentForPackage(pkgName)
+
+        if (intent == null) {
+            throw RuntimeException("Could not find launcher intent for $pkgName. Is the app installed?")
+        }
+
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         context.startActivity(intent)
 
-        // Wait for the app to open
-        device.wait(Until.hasObject(By.pkg("com.example.workoutroomproject").depth(0)), 5000)
+        // Wait up to 10 seconds for the app to actually appear
+        device.wait(Until.hasObject(By.pkg(pkgName).depth(0)), 10000)
 
-        // 3. You are already logged in! Just wait for the 60KB fetch trace to complete.
-        Thread.sleep(15000)
+        // --- STABILIZED CLICKS ---
+        // Use a shorter wait for the buttons so we don't hang if they don't appear
+        val allowRegex = Pattern.compile("(?i)allow|while using the app|allow all")
+        device.wait(Until.findObject(By.text(allowRegex)), 2000)?.click()
 
-        // 4. Press the Home button to force the Firebase trace upload
+        val loginRegex = Pattern.compile("(?i).*log in.*")
+        device.wait(Until.findObject(By.text(loginRegex)), 5000)?.click()
+
+        // Wait for the fetch trace
+        Thread.sleep(5000)
+
         device.pressHome()
 
-        // Give Firebase a few seconds to finish the background upload
-        Thread.sleep(4000)
+        Thread.sleep(5000)
     }
 }
 
 
-//for ($i=1; $i -le 30; $i++) {
-//    Write-Host "Run ${i}: Force Stopping App..."
-//    adb shell am force-stop com.example.workoutroomproject
+//adb install -r -g app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+//adb install -r -t -g app/build/outputs/apk/debug/app-debug.apk
+//adb shell pm list packages | findstr "solidfit"
 //
-//            Write-Host "Run ${i}: Starting test..."
-//    adb shell am instrument -w -e class com.example.solidfit.ColdStartAutomatedTest com.example.workoutroomproject.test/androidx.test.runner.AndroidJUnitRunner
+
+//for ($i=1; $i -le 28; $i++) {
+//    Write-Host "Run ${i}: Testing Cold Start..."
+//    adb shell am force-stop com.example.solidfit
 //
-//    Start-Sleep -Seconds 4
+//    # Run the test
+//    adb shell am instrument -w -e class com.example.solidfit.ColdStartAutomatedTest com.example.solidfit.test/androidx.test.runner.AndroidJUnitRunner
+//
+//    # 3. Increase the total gap between runs to 30 seconds
+//    # This ensures the OS and the Firebase SDK have completely reset.
+//    Write-Host "Run ${i} complete. Waiting for cloud sync..."
+//    Start-Sleep -Seconds 10
 //}

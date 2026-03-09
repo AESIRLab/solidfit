@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.solidfit.data.AuthTokenStore
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -37,7 +38,7 @@ fun RequireValidAuthToken(
 
     // prevents multiple refresh calls if this recomposes quickly
     val refreshMutex = remember { Mutex() }
-
+    val context = LocalContext.current // Add this
     suspend fun forceLogoutToStart(
         tokenStore: AuthTokenStore,
         navController: NavController
@@ -62,7 +63,7 @@ fun RequireValidAuthToken(
 
         if (exp <= now + skew) {
             val refreshed = refreshMutex.withLock {
-                withContext(Dispatchers.IO) { tryRefreshTokens(tokenStore) }
+                withContext(Dispatchers.IO) { tryRefreshTokens(context, tokenStore) }
             }
             if (refreshed == null) forceLogoutToStart(tokenStore, navController)
             return@LaunchedEffect
@@ -74,7 +75,7 @@ fun RequireValidAuthToken(
 
         // When near expiry: refresh
         val refreshed = refreshMutex.withLock {
-            withContext(Dispatchers.IO) { tryRefreshTokens(tokenStore) }
+            withContext(Dispatchers.IO) { tryRefreshTokens(context, tokenStore) }
         }
         if (refreshed == null) forceLogoutToStart(navController = navController, tokenStore = tokenStore)
     }

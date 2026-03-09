@@ -61,6 +61,7 @@ playServicesLocation = "21.3.0"
 ksp = "2.0.21-1.0.25"
 navigationRuntimeAndroid = "2.8.4"
 uiTestJunit4Android = "1.7.0"
+#firebasePerfKtx = "22.0.4"
 
 
 [libraries]
@@ -92,6 +93,7 @@ converter-moshi = { module = "com.squareup.retrofit2:converter-moshi", version.r
 dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "daggerCompiler" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-perf = { module = "com.google.firebase:firebase-perf" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -127,6 +129,7 @@ androidx-compose-material3 = { group = "androidx.wear.compose", name = "compose-
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 androidx-navigation-runtime-android = { group = "androidx.navigation", name = "navigation-runtime-android", version.ref = "navigationRuntimeAndroid" }
 androidx-ui-test-junit4-android = { group = "androidx.compose.ui", name = "ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
+#firebase-perf-ktx = { group = "com.google.firebase", name = "firebase-perf-ktx", version.ref = "firebasePerfKtx" }
 
 
 [plugins]

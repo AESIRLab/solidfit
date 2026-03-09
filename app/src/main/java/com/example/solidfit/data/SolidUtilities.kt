@@ -31,7 +31,7 @@ import com.example.solidfit.data.Utilities.Companion.ABSOLUTE_URI
 import com.example.solidfit.tryRefreshTokens
 
 public class SolidUtilities(
-  context: Context,
+  private val context: Context,
 ) {
   private val tokenStore: AuthTokenStore = AuthTokenStore(context)
 
@@ -64,7 +64,7 @@ public class SolidUtilities(
     // 2) if unauthorized, refresh + retry once
     if (code == 401 || code == 403) {
 
-      val newAccessToken = tryRefreshTokens(tokenStore)
+      val newAccessToken = tryRefreshTokens(context, tokenStore)
 
       if (newAccessToken == null) return code
 

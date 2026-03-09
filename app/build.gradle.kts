@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.ksp)
 //    id("com.google.devtools.ksp") version "2.0.21-1.0.25"
     alias(libs.plugins.compose.compiler)
+    id("com.google.firebase.firebase-perf")
 }
 
 buildscript {
@@ -26,7 +27,7 @@ android {
         minSdk = 30
         targetSdk = 35
         versionCode = 1
-        versionName = "2.3.5"
+        versionName = "2.3.16"
         compileSdkPreview = "VanillaIceCream"
         manifestPlaceholders["appAuthRedirectScheme"] = "com.example.solidfit"
 
@@ -106,6 +107,7 @@ dependencies {
     implementation(libs.appauth)
     implementation(libs.play.services.location)
     implementation(libs.androidx.navigation.compose)
+//    implementation(libs.firebase.perf.ktx)
 
     ksp("com.squareup:kotlinpoet:1.14.0")
     ksp("com.squareup:kotlinpoet-ksp:1.12.0")
@@ -224,6 +226,9 @@ dependencies {
     // Explicitly defining the version bypasses the missing version error
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.6.0")
+
+    implementation(libs.firebase.perf)
+
 }
 
 configurations.all {

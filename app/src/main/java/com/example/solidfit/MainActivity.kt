@@ -180,6 +180,18 @@ class MainActivity : ComponentActivity() {
     }
 
     private var currentBatchIndex = 0
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            // "connection" should be the name of the ServiceConnection variable
+            // you created and passed into bindService() earlier in the file.
+            unbindService(connection)
+        } catch (e: IllegalArgumentException) {
+            // Catch this in case the service was never successfully bound
+            Log.w("MainActivity", "Service was already unbound or not bound.")
+        }
+    }
 }
 
 private fun generateCustomToken(signingJwk: String, method: String, uri: String): String {

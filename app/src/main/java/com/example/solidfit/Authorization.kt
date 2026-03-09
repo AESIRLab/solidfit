@@ -145,6 +145,7 @@ private fun LandingGate(
     onValidToken: () -> Unit,
     onNeedsLogin: () -> Unit,
 ) {
+    val context = LocalContext.current
     // simple loading UI
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -171,7 +172,9 @@ private fun LandingGate(
         }
 
         if (looksValid()) {
-            onValidToken()
+            withContext(Dispatchers.Main) {
+                onValidToken()
+            }
             return@LaunchedEffect
         }
 
@@ -180,15 +183,18 @@ private fun LandingGate(
         val canRefresh = refreshToken.isNotBlank() && refreshToken != "null"
 
         if (canRefresh) {
-            val refreshed = tryRefreshTokens(tokenStore)
+            val refreshed = tryRefreshTokens(context, tokenStore)
             if (refreshed != null && looksValid()) {
-                onValidToken()
+                withContext(Dispatchers.Main) {
+                    onValidToken()
+                }
                 return@LaunchedEffect
             }
         }
 
-        onNeedsLogin()
-    }
+        withContext(Dispatchers.Main) {
+            onNeedsLogin()
+        }    }
 }
 
 @Composable
@@ -222,14 +228,14 @@ private fun CredentialManagerLoginScreen(
 
         // The bind is async; this “retry loop” avoids crashing if the service
         // isn't connected yet when fetchWebIds() runs.
-        repeat(20) {
+        repeat(40) {
             try {
                 webIds = withContext(Dispatchers.IO) { credentialClient.fetchWebIds() }
                 loadingWebIds = false
                 statusText = if (webIds.isEmpty()) "No WebIDs found in credential manager." else "Select a WebID:"
                 return@LaunchedEffect
             } catch (e: Throwable) {
-                delay(150)
+                delay(250)
             }
         }
 
@@ -338,9 +344,15 @@ private fun CredentialManagerLoginScreen(
                             }.onFailure {
                                 Log.w("Authorization", "Failed to derive clientId/tokenUri: ${it.message}")
                             }
+
+                            val cleanedSigningKey = if (signingKey.startsWith("\"{")) {
+                                signingKey.removeSurrounding("\"").replace("\\\"", "\"")
+                            } else {
+                                signingKey
+                            }
                             tokenStore.setRefreshToken(cleanedRefreshToken)
                             tokenStore.setTokenExpiresAt(expiresAtMs)
-                            tokenStore.setSigner(signingKey)
+                            tokenStore.setSigner(cleanedSigningKey)
 
                             Log.d("Authorization", "Stored credentials for $grantedWebId, navigating…")
                             onLoginSuccess()

@@ -15,15 +15,6 @@ public class WorkoutItemRepository(
     public fun getWorkoutItemLiveData(uri: String): Flow<WorkoutItem> =
         workoutItemDao.getWorkoutItemByIdAsFlow(uri)
 
-    public fun allWorkoutItems(): List<WorkoutItem> = workoutItemDao.getAllWorkoutItems()
-
-    @WorkerThread
-    public suspend fun insertMany(itemList: List<WorkoutItem>) {
-        itemList.forEach {
-            workoutItemDao.insert(it)
-        }
-    }
-
     @WorkerThread
     public suspend fun update(item: WorkoutItem) {
         workoutItemDao.update(item)
@@ -46,10 +37,6 @@ public class WorkoutItemRepository(
     @WorkerThread
     public suspend fun deleteAll() {
         workoutItemDao.deleteAll()
-    }
-
-    public fun resetModel() {
-        workoutItemDao.resetModel()
     }
 
     @WorkerThread

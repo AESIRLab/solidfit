@@ -26,7 +26,7 @@ class FirebasePerformanceUITest {
     fun generateTracesForInsertAndDelete() {
         // Let the app settle and load data first
         composeTestRule.waitForIdle()
-        Thread.sleep(2000)
+        Thread.sleep(15000)
 
         // --- 1. TRIGGER THE INSERT TRACE 30 TIMES ---
         repeat(30) { index ->
@@ -55,18 +55,15 @@ class FirebasePerformanceUITest {
             Thread.sleep(500) // Brief pause to let the list UI settle
         }
 
-        // Wait a moment after all 30 inserts are done
-        Thread.sleep(2000)
-
         // --- 3. THE FIREBASE UPLOAD WINDOW ---
         // Pausing for 10 seconds to guarantee the background upload completes.
-        Thread.sleep(10000)
+        Thread.sleep(20000)
     }
 
     @Test
     fun generateTracesForFetchAll() {
         composeTestRule.waitForIdle()
-        Thread.sleep(2000)
+        Thread.sleep(10000)
 
         // Loop the fetch 30 times
         repeat(30) {

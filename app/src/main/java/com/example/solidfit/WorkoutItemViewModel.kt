@@ -43,6 +43,7 @@ import com.example.solidfit.data.AuthTokenStore
 import com.example.solidfit.tryRefreshTokens
 import kotlinx.coroutines.flow.firstOrNull
 import com.example.solidfit.data.RecentWebIdStore
+import com.google.firebase.perf.FirebasePerformance
 import org.json.JSONObject
 
 
@@ -144,6 +145,32 @@ class WorkoutItemViewModel(
         }
     }
 
+    fun fetchAllOnceForBenchmark() {
+        val trace = FirebasePerformance.getInstance().newTrace("solid_warm_fetch_trace")
+        trace.start()
+        // 2. Launch coroutine for the suspending network fetch
+        viewModelScope.launch {
+            try {
+                // 3. Ensure we have a valid token and storage URI
+                if (!remoteDataSource.remoteAccessible()) {
+                    Log.e("SolidPerf", "Solid remote is not accessible (missing token or WebID).")
+                    trace.stop()
+                    return@launch
+                }
+
+                // 4. Perform the single server fetch from the Pod container
+                val remoteList = remoteDataSource.fetchRemoteItemList()
+
+                // Now this will count the actual workout UUIDs returned from the Pod!
+                Log.d("SolidPerf", "Successfully fetched ${remoteList.size} workouts from Solid Pod.")
+                trace.stop()
+            } catch (e: Exception) {
+                Log.e("SolidPerf", "Error fetching from Solid Pod", e)
+                trace.stop()
+            }
+        }
+    }
+    
     suspend fun storeCredentialsFromServerJson(
         tokenStore: AuthTokenStore,
         raw: String
@@ -274,39 +301,57 @@ class WorkoutItemViewModel(
             try {
                 repository.insertWebId(webId)
             } catch (e: Exception) {
-                // Log the conflict, but do NOT reset the model.
-                Log.d("WorkoutItemViewModel", "WebID already exists or insert failed. Proceeding.")
+                Log.d("WorkoutItemViewModel", "WebID already exists. Proceeding.")
             }
 
-            val remote = try {
+
+
+            try {
                 if (remoteDataSource.remoteAccessible()) {
-                    remoteDataSource.fetchRemoteItemList()
+                    val fetchTrace = FirebasePerformance.getInstance().newTrace("solid_cold_fetch_trace_real")
+                    fetchTrace.start()
+                    // 1. Fetch the absolute truth from the Pod
+                    val remote = remoteDataSource.fetchRemoteItemList()
+
+                    fetchTrace.stop()
+
+                    // 2. Overwrite the local database entirely with the Pod's data
+                    repository.overwriteModelWithList(remote)
+
+                    // 3. Sync media and update the UI
+                    syncRemoteImages(remote)
+
+                    withContext(Dispatchers.Main) {
+                        _allItems.value = remote.sortedWith(workoutComparator)
+                    }
+
+                    // REMOVED: pushRemoteWithRefreshRetry(merged)
+                    // We no longer push back to the Pod during a fetch/refresh!
                 } else {
-                    emptyList()
+                    // Offline fallback: load local data
+                    loadLocalData()
                 }
             } catch (e: Exception) {
-                Log.w("WorkoutItemViewModel", "Remote fetch failed (token likely expired)", e)
-                emptyList() // Return empty so the local data can still load!
+                Log.w("WorkoutItemViewModel", "Fetch from Pod failed. Falling back to local data.", e)
+                loadLocalData()
             }
+        }
+    }
 
-            val local = repository.allWorkoutItemsAsFlow.firstOrNull() ?: emptyList()
-
-            val merged = (remote + local)
-                .distinctBy { it.id }
-
-            repository.overwriteModelWithList(merged)
-
-            syncRemoteImages(merged)
-
-            _allItems.value = merged.sortedByDescending { it.dateCreated }
-
-            pushRemoteWithRefreshRetry(merged)
+    // Helper function to keep the catch block clean
+    private suspend fun loadLocalData() {
+        val local = repository.allWorkoutItemsAsFlow.firstOrNull() ?: emptyList()
+        withContext(Dispatchers.Main) {
+            _allItems.value = local.sortedWith(workoutComparator)
         }
     }
 
     fun insert(item: WorkoutItem) {
-
         viewModelScope.launch(Dispatchers.IO) {
+            // 1. Create and start the trace exactly like the Firebase app
+            val trace = com.google.firebase.perf.FirebasePerformance.getInstance().newTrace("solid_workout_insert_trace")
+            trace.start()
+
             try {
                 repository.insert(item)
 
@@ -352,6 +397,9 @@ class WorkoutItemViewModel(
                 }
             } catch (t: Throwable) {
                 Log.e("WorkoutViewModel", "Failed to insert and sync workout.", t)
+            } finally {
+                // 2. Stop the trace no matter what happens (success or failure)
+                trace.stop()
             }
         }
     }
@@ -792,6 +840,7 @@ class WorkoutItemViewModel(
     private suspend fun pushRemoteWithRefreshRetry(items: List<WorkoutItem>) {
         if (!remoteDataSource.remoteAccessible()) return
 
+
         try {
             remoteDataSource.updateRemoteItemList(items)
             return
@@ -800,8 +849,7 @@ class WorkoutItemViewModel(
             Log.w("WorkoutViewModel", "Remote update failed, attempting refresh+retry", e)
         }
 
-        val newAccessToken = tryRefreshTokens(tokenStore)
-
+        val newAccessToken = tryRefreshTokens(application.applicationContext, tokenStore)
         if (newAccessToken == null) {
             Log.w("WorkoutViewModel", "Refresh failed; remote update will be retried later")
             return
