@@ -194,19 +194,23 @@ public fun generatePutRequest(
   rBody: RequestBody,
   accessToken: String,
   signingJwk: String,
-): Request = Request.Builder().url(resourceUri).addHeader("DPoP", generateCustomToken("PUT",
-    resourceUri, signingJwk)
-).addHeader("Authorization", "DPoP " +
-    "$accessToken").addHeader("content-type", "text/turtle").addHeader("Link",
-    "<http://www.w3.org/ns/ldp#Resource>;rel=\"type\"").method("PUT", rBody).build()
+  contentType: String = "text/turtle",
+): Request = Request.Builder().url(resourceUri)
+  .addHeader("DPoP", generateCustomToken("PUT", resourceUri, signingJwk))
+  .addHeader("Authorization", "DPoP $accessToken")
+  .addHeader("content-type", contentType)
+//  .addHeader("Link", "<http://www.w3.org/ns/ldp#Resource>;rel=\"type\"")
+  .method("PUT", rBody).build()
 
 public fun generatePostRequest(
-  tokenUri: String,
+  uri: String,
   formBody: RequestBody,
   accessToken: String,
   signingJwk: String,
-): Request = Request.Builder().url(tokenUri).addHeader("DPoP", generateCustomToken("POST", tokenUri,
-    signingJwk)
-).addHeader("Authorization", "DPoP " + "$accessToken").addHeader("content-type",
-    "text/turtle").addHeader("Link",
-    "<http://www.w3.org/ns/ldp#Resource>;rel=\"type\"").method("POST", formBody).build()
+  contentType: String = "text/turtle"
+): Request = Request.Builder().url(uri)
+  .addHeader("DPoP", generateCustomToken("POST", uri, signingJwk))
+  .addHeader("Authorization", "DPoP $accessToken")
+  .addHeader("content-type", contentType)
+//  .addHeader("Link", "<http://www.w3.org/ns/ldp#Resource>;rel=\"type\"")
+  .method("POST", formBody).build()

@@ -89,6 +89,12 @@ public class AuthTokenStore(
 
   public fun getSigner(): Flow<String> = dataStore.data.map { it[SIGNER] ?: "" }
 
+  public suspend fun setSummaryText(summaryText: String) {
+    dataStore.edit { it[SUMMARY_TEXT] = summaryText }
+  }
+
+  public fun getSummaryText(): Flow<String> = dataStore.data.map { it[SUMMARY_TEXT] ?: "" }
+
   suspend fun clearAuth() {
     dataStore.edit {
       it[ACCESS_TOKEN] = ""
@@ -124,5 +130,7 @@ public class AuthTokenStore(
     public val REDIRECT_URI: Key<String> = stringPreferencesKey("redirect_uri")
 
     public val SIGNER: Key<String> = stringPreferencesKey("signer")
+
+    public val SUMMARY_TEXT: Key<String> = stringPreferencesKey("summary_text")
   }
 }

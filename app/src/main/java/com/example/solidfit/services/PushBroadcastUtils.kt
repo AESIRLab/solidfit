@@ -4,14 +4,11 @@ import android.content.Context
 import android.content.Intent
 
 fun Context.broadcastPushMessageInfo(
-    action: String,
-    queryId: String,
     response: String
 ) {
     val broadcastIntent = Intent()
     broadcastIntent.`package` = this.packageName
-    broadcastIntent.action = action
-    broadcastIntent.putExtra("queryId", queryId)
+    broadcastIntent.action = "RESPONSE"
     broadcastIntent.putExtra("response", response)
     this.sendBroadcast(broadcastIntent)
 }

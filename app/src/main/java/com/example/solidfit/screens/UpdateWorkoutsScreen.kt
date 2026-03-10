@@ -82,7 +82,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.navigation.NavHostController
+import com.example.solidfit.WorkoutItemSolidApplication
 
 @RequiresApi(Build.VERSION_CODES.S)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -316,11 +318,6 @@ fun UpdateWorkouts(
                     ) {
                         Button(onClick = { viewModel.fetchAllOnceForBenchmark() }) {
                             Text("Fetch All (RTDB)")
-                        }
-                        Button(onClick = {
-                            navController.navigate(SolidAuthFlowScreen.SummaryScreen.name)
-                        }) {
-                            Text("Request Summary")
                         }
                     }
 
@@ -582,7 +579,7 @@ fun UpdateWorkouts(
 
             // SCREEN: AI Summary
             composable(route = SolidAuthFlowScreen.SummaryScreen.name) {
-                SummaryScreen()
+                SummaryScreen(context.applicationContext as WorkoutItemSolidApplication).Summary()
             }
 
             composable(route = SolidAuthFlowScreen.SettingsScreen.name) {
