@@ -27,7 +27,7 @@ android {
         minSdk = 30
         targetSdk = 35
         versionCode = 1
-        versionName = "2.3.16"
+        versionName = "2.3.17"
         compileSdkPreview = "VanillaIceCream"
         manifestPlaceholders["appAuthRedirectScheme"] = "com.example.solidfit"
 
@@ -70,9 +70,11 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
+
     packaging {
         @Suppress("DEPRECATION")
         exclude ("META-INF/atomicfu.kotlin_module")
+
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
@@ -229,11 +231,15 @@ dependencies {
 
     implementation(libs.firebase.perf)
 
+    implementation(libs.unified.push) {
+        exclude("com.google.protobuf", "protobuf-java")
+    }
 }
 
 configurations.all {
     resolutionStrategy {
         force("androidx.test.espresso:espresso-core:3.6.1")
         force("androidx.test.ext:junit:1.2.1")
+//        force ("com.google.protobuf:protobuf-javalite:3.25.5")
     }
 }

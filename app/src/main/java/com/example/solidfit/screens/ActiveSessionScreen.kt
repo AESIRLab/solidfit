@@ -227,12 +227,11 @@ fun ActiveSessionScreen(
                 onClick = {
                     val result = sessionVm.stopSession()
                     //TODO: TESTING-change int to change KB size of workout item
-                    val massiveNotes = generateDummyPayload(64)
+//                    val massiveNotes = generateDummyPayload(64)
                     val detailsJson = result.details.toJsonString()
                     onStopAndSave(
                         result.title,
-                        massiveNotes,
-//                        result.notes,
+                        result.notes,
                         result.durationSeconds,
                         result.avgHeartRate,
                         detailsJson

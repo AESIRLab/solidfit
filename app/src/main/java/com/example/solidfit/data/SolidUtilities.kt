@@ -1,6 +1,7 @@
 package com.example.solidfit.data
 
 import android.content.Context
+import android.net.Uri
 import com.example.solidfit.model.WorkoutItem
 import com.hp.hpl.jena.query.QueryExecutionFactory
 import com.hp.hpl.jena.query.QueryFactory
@@ -148,7 +149,15 @@ public suspend fun getStorage(webId: String): String {
   }
   } catch (e: Exception) {
   }
-  return storage
+  if (storage.isBlank()) {
+    val uri = Uri.parse(webId)
+    val scheme = uri.scheme ?: "https"
+    val host = uri.host ?: ""
+    val firstPath = uri.pathSegments[0] ?: ""
+    return "$scheme://$host/$firstPath/"
+  } else {
+    return storage
+  }
 }
 
 public fun generateGetRequest(

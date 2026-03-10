@@ -1,12 +1,22 @@
 package com.example.solidfit.screens
 
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
+import android.os.IBinder
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,10 +41,12 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.example.solidfit.SolidAuthFlowScreen
+import com.example.solidfit.services.UPPushServiceImpl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import com.example.solidfit.data.AuthTokenStore
+import org.unifiedpush.android.connector.UnifiedPush
 
 @Composable
 fun SettingsScreen(
@@ -46,6 +59,24 @@ fun SettingsScreen(
 
     val webId by tokenStore.getWebId().collectAsState(initial = "")
     val isSignedIn = webId.isNotBlank()
+
+    // UnifiedPush state
+    var distribSelected by rememberSaveable { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    var serviceStarted by rememberSaveable { mutableStateOf(false) }
+    val mBound = remember { mutableStateOf(false) }
+
+    val mConnection = remember {
+        object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                mBound.value = true
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                mBound.value = false
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -94,6 +125,67 @@ fun SettingsScreen(
             }
         }) {
             Text("Sign out")
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // UnifiedPush section
+        Text(
+            text = "Unified Push Notifications",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (!serviceStarted) {
+            Button(onClick = {
+                Intent(context, UPPushServiceImpl::class.java).also { intent ->
+                    context.applicationContext.bindService(intent, mConnection, Context.BIND_AUTO_CREATE)
+                }
+                serviceStarted = true
+            }) {
+                Text("Start Unified Push Service")
+            }
+        } else {
+            Button(onClick = {
+                val serviceIntent = Intent(context, UPPushServiceImpl::class.java)
+                context.applicationContext.stopService(serviceIntent)
+                serviceStarted = false
+            }) {
+                Text("Stop Unified Push")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (!distribSelected) {
+            Button(onClick = { expanded = true }) {
+                Text("Select Distributor")
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                Text("Select a distributor service:", modifier = Modifier.padding(8.dp))
+                UnifiedPush.getDistributors(context.applicationContext).forEach { distributor ->
+                    DropdownMenuItem(
+                        text = { Text(text = distributor) },
+                        onClick = {
+                            UnifiedPush.saveDistributor(context.applicationContext, distributor)
+                            UnifiedPush.register(context.applicationContext)
+                            distribSelected = true
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        } else {
+            Button(onClick = {
+                UnifiedPush.unregister(context.applicationContext)
+                distribSelected = false
+            }) {
+                Text("Unregister Push Connection")
+            }
         }
     }
 }

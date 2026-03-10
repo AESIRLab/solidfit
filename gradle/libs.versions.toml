@@ -62,6 +62,8 @@ ksp = "2.0.21-1.0.25"
 navigationRuntimeAndroid = "2.8.4"
 uiTestJunit4Android = "1.7.0"
 #firebasePerfKtx = "22.0.4"
+unifiedPush = "3.0.0"
+
 
 
 [libraries]
@@ -130,6 +132,7 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 androidx-navigation-runtime-android = { group = "androidx.navigation", name = "navigation-runtime-android", version.ref = "navigationRuntimeAndroid" }
 androidx-ui-test-junit4-android = { group = "androidx.compose.ui", name = "ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
 #firebase-perf-ktx = { group = "com.google.firebase", name = "firebase-perf-ktx", version.ref = "firebasePerfKtx" }
+unified-push = {group = "org.unifiedpush.android", name = "connector", version.ref = "unifiedPush"}
 
 
 [plugins]

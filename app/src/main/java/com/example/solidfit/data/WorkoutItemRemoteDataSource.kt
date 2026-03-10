@@ -19,6 +19,7 @@ import com.example.solidfit.data.Utilities.Companion.ABSOLUTE_URI
 import com.example.solidfit.data.Utilities.Companion.resourceToWorkoutItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+private const val TAG = "WorkoutItemRemoteDataSource"
 
 public class WorkoutItemRemoteDataSource(
   public var webId: String? = null,
@@ -85,7 +86,7 @@ public class WorkoutItemRemoteDataSource(
     model.write(bOutputStream, "TURTLE", null)
     val rBody = bOutputStream.toByteArray()
       .toRequestBody(null, 0, bOutputStream.size())
-
+    Log.d(TAG, resourceUri)
     val putRequest = generatePutRequest(resourceUri, rBody, accessToken!!, signingJwk!!)
     client.newCall(putRequest).execute().use { putResponse ->
       if (putResponse.code !in 200..299) {

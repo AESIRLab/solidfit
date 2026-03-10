@@ -44,7 +44,50 @@ import com.example.solidfit.tryRefreshTokens
 import kotlinx.coroutines.flow.firstOrNull
 import com.example.solidfit.data.RecentWebIdStore
 import com.google.firebase.perf.FirebasePerformance
+import com.hp.hpl.jena.query.QueryExecutionFactory
+import com.hp.hpl.jena.query.QueryFactory
+import com.hp.hpl.jena.rdf.model.ModelFactory
 import org.json.JSONObject
+
+suspend fun getOidcProviderFromWebId(webId: String): String = withContext(Dispatchers.IO) {
+    val client = getUnsafeOkHttpClient()
+    val req = Request.Builder()
+        .url(webId)
+        .addHeader("Accept", "text/turtle, application/ld+json;q=0.9, */*;q=0.1")
+        .build()
+    val body = client.newCall(req).execute().use { it.body?.string().orEmpty() }
+    val stringAsByteArray = body.toByteArray()
+    val utf8String = String(stringAsByteArray, Charsets.UTF_8)
+    val inStream = utf8String.byteInputStream()
+    val m = ModelFactory.createDefaultModel().read(inStream, null, "TURTLE")
+    val queryString = "SELECT ?o\n" +
+            "WHERE\n" +
+            "{ ?s <http://www.w3.org/ns/pim/space#storage> ?o }"
+    val q = QueryFactory.create(queryString)
+    var result = ""
+    try {
+        val qexec = QueryExecutionFactory.create(q, m)
+        val results = qexec.execSelect()
+        while (results.hasNext()) {
+            val soln = results.nextSolution()
+            result = soln.getResource("o").toString()
+            break
+        }
+    } catch (e: Exception) {
+        throw Error("could not perform fetch with exception ${e.message}")
+    }
+    return@withContext result.ifBlank {
+        val uri = Uri.parse(webId)
+        val host = uri.host ?: ""
+
+        val firstPath = uri.pathSegments[0] ?: ""
+        if (firstPath.isBlank()) {
+            host
+        } else {
+            "$host/$firstPath/"
+        }
+    }
+}
 
 
 class WorkoutItemViewModel(
@@ -132,7 +175,7 @@ class WorkoutItemViewModel(
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                getOrFetchStorageRoot()
+                getOidcProviderFromWebId(webId)
                 Log.d("SolidImage", "Storage root primed in setRemoteRepositoryData.")
 
                 withContext(Dispatchers.Main) {
