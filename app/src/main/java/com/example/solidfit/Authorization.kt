@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
@@ -58,6 +58,7 @@ enum class SolidAuthFlowScreen {
     UnfetchableWebIdScreen,
     UpdateWorkouts,
     CredentialManagerAuthScreen,
+    SummaryScreen,
 }
 
 
@@ -68,10 +69,10 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
         title = "Workout List",
         icon = Icons.AutoMirrored.Filled.List
     )
-    data object WeightMonitor: BottomNavItem(
-        route = SolidAuthFlowScreen.WeightMonitor.name,
-        title = "Weight Monitor",
-        icon = Icons.Default.Person
+    data object Summary: BottomNavItem(
+        route = SolidAuthFlowScreen.SummaryScreen.name,
+        title = "Summary",
+        icon = Icons.Default.Star
     )
     data object Settings: BottomNavItem(
         route = SolidAuthFlowScreen.SettingsScreen.name,

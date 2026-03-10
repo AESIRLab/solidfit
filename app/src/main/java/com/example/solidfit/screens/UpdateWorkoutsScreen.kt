@@ -112,7 +112,7 @@ fun UpdateWorkouts(
         SolidAuthFlowScreen.WorkoutList.name,
         SolidAuthFlowScreen.AddEditWorkoutScreen.name,
         SolidAuthFlowScreen.HeartRateMonitor.name,
-        SolidAuthFlowScreen.WeightMonitor.name,
+        SolidAuthFlowScreen.SummaryScreen.name,
         SolidAuthFlowScreen.WorkoutCardScreen.name,
         SolidAuthFlowScreen.SettingsScreen.name
     )
@@ -122,7 +122,7 @@ fun UpdateWorkouts(
     }
     val navBarItems = listOf(
         BottomNavItem.WorkoutList,
-        BottomNavItem.WeightMonitor,
+        BottomNavItem.Summary,
         BottomNavItem.Settings,
     )
 
@@ -311,8 +311,17 @@ fun UpdateWorkouts(
 
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
 
-                    Button(onClick = { viewModel.fetchAllOnceForBenchmark() }) {
-                        Text("Fetch All (RTDB)")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(onClick = { viewModel.fetchAllOnceForBenchmark() }) {
+                            Text("Fetch All (RTDB)")
+                        }
+                        Button(onClick = {
+                            navController.navigate(SolidAuthFlowScreen.SummaryScreen.name)
+                        }) {
+                            Text("Request Summary")
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -569,6 +578,11 @@ fun UpdateWorkouts(
                         permissionsLauncher.launch(values)
                     },
                 )
+            }
+
+            // SCREEN: AI Summary
+            composable(route = SolidAuthFlowScreen.SummaryScreen.name) {
+                SummaryScreen()
             }
 
             composable(route = SolidAuthFlowScreen.SettingsScreen.name) {
