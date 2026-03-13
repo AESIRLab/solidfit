@@ -28,4 +28,8 @@ public interface WorkoutItemDao {
   public fun resetModel()
 
   public suspend fun overwriteModelWithList(items: List<WorkoutItem>)
+
+  public fun getLastModified(): String?
+
+  public fun setLastModified(value: String)
 }

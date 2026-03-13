@@ -34,6 +34,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.example.solidfit.data.session.sessionDetailsFromJson
+import com.zybooks.sksolidannotations.SolidAnnotation
+import com.zybooks.utilities.SolidDefaultUtilities
 
 
 //@SolidDefaultTokenStore
@@ -45,10 +47,10 @@ import com.example.solidfit.data.session.sessionDetailsFromJson
 //)
 //@SolidDbAnnotation
 //@SolidRemoteDataSource
-//@SolidAnnotation(
-//    "http://www.w3.org/2024/ci/core#",
-//    "AndroidApplication/SolidFit"
-//)
+@SolidAnnotation(
+    "http://www.w3.org/2024/ci/core#",
+    "AndroidApplication/SolidFit"
+)
 
 data class WorkoutItem(
     var id: String,

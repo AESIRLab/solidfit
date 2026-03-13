@@ -85,9 +85,11 @@ class SummaryScreen(
                                 val storageUri = getStorage(webId)
                                 val resourceUri = "${storageUri}AndroidApplication/ButtonClick/"
 
+                                val timeSent = System.currentTimeMillis()
                                 val json = JSONObject()
                                 json.put("action", "/ButtonClick/")
                                 json.put("webId", webId)
+                                json.put("timestamp", timeSent)
                                 val body = json.toString()
                                     .toRequestBody("application/json".toMediaType())
 

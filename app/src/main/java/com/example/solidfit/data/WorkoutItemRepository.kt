@@ -43,4 +43,8 @@ public class WorkoutItemRepository(
     public suspend fun overwriteModelWithList(items: List<WorkoutItem>) {
         workoutItemDao.overwriteModelWithList(items)
     }
+
+    public fun getLastModified(): String? = workoutItemDao.getLastModified()
+
+    public fun setLastModified(value: String) = workoutItemDao.setLastModified(value)
 }

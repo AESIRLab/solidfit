@@ -27,6 +27,8 @@ class UPPushServiceImpl : PushService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onMessage(message: PushMessage, instance: String) {
+//        val timeReceived =
+//        Log.d("SUMMARY_TIME_RECEIVED", timeReceived.toString())
         val msg = message.content.commonToUtf8String()
         Log.d(TAG, "new message received with content: $msg and content is ${if (message.decrypted) "decrypted" else "encrypted"}")
         this.applicationContext.broadcastPushMessageInfo(msg)
@@ -34,6 +36,7 @@ class UPPushServiceImpl : PushService() {
         var notificationText = msg
         try {
             val jsonMessage = JSONObject(msg)
+            Log.d("SUMMARY_TIME_SERVER", JSONObject(msg).toString())
             val generatedText = jsonMessage.optString("generated_text", "")
             if (generatedText.isNotBlank()) {
                 notificationText = generatedText

@@ -29,8 +29,18 @@ public class WorkoutItemRemoteDataSource(
   private val externalScope: CoroutineScope,
 ) {
   private var latestList: List<WorkoutItem> = emptyList()
+  private var cachedStorageUri: String? = null
 
   private val latestListMutex: Mutex = Mutex()
+
+  public fun clearStorageCache() { cachedStorageUri = null }
+
+  private suspend fun resolveStorageUri(): String {
+    cachedStorageUri?.let { return it }
+    val uri = getStorage(webId!!)
+    cachedStorageUri = uri
+    return uri
+  }
 
   private fun setLatestList(items: List<WorkoutItem>) {
     latestList = items
@@ -43,7 +53,7 @@ public class WorkoutItemRemoteDataSource(
     if (!accessTokenIsValid()) return@withContext
 
     val client = OkHttpClient()
-    val storageUri = getStorage(webId!!)
+    val storageUri = resolveStorageUri()
     val model = ModelFactory.createDefaultModel()
     val resourceUri = "${storageUri}$ABSOLUTE_URI"
 
@@ -104,12 +114,32 @@ public class WorkoutItemRemoteDataSource(
 
 
 
+  public suspend fun fetchRemoteLastModified(): String? = withContext(Dispatchers.IO) {
+    if (webId == null || accessToken == null || signingJwk == null || !accessTokenIsValid()) {
+      return@withContext null
+    }
+    val storageUri = resolveStorageUri()
+    val resourceUri = "${storageUri}$ABSOLUTE_URI"
+    val headRequest = generateHeadRequest(resourceUri, accessToken!!, signingJwk!!)
+    val client = OkHttpClient()
+    client.newCall(headRequest).execute().use { response ->
+      Log.d(TAG, "HEAD $resourceUri → ${response.code}")
+      if (response.code !in 200..299) {
+        Log.d(TAG, "fetchRemoteLastModified failed: ${response.code} ${response.message}")
+        return@withContext null
+      }
+      val lm = response.header("Last-Modified")
+      Log.d(TAG, "Remote Last-Modified: $lm")
+      return@withContext lm
+    }
+  }
+
   public suspend fun fetchRemoteItemList(): List<WorkoutItem> = withContext(Dispatchers.IO) {
     if (webId == null || accessToken == null || signingJwk == null || !accessTokenIsValid()) {
       return@withContext latestListMutex.withLock { this@WorkoutItemRemoteDataSource.latestList }
     }
 
-    val storageUri = getStorage(webId!!)
+    val storageUri = resolveStorageUri()
     val getRequest = generateGetRequest("${storageUri}$ABSOLUTE_URI", accessToken!!, signingJwk!!)
     val client = OkHttpClient()
 

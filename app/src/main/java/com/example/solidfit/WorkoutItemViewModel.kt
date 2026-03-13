@@ -47,6 +47,8 @@ import com.google.firebase.perf.FirebasePerformance
 import com.hp.hpl.jena.query.QueryExecutionFactory
 import com.hp.hpl.jena.query.QueryFactory
 import com.hp.hpl.jena.rdf.model.ModelFactory
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 
 suspend fun getOidcProviderFromWebId(webId: String): String = withContext(Dispatchers.IO) {
@@ -154,9 +156,9 @@ class WorkoutItemViewModel(
     }
 
 
-    fun remoteIsAvailable(): Boolean {
-        return remoteDataSource.remoteAccessible()
-    }
+//    fun remoteIsAvailable(): Boolean {
+//        return remoteDataSource.remoteAccessible()
+//    }
 
     private fun isLocalContentUri(uri: String): Boolean =
         uri.startsWith("content", ignoreCase = true)
@@ -170,6 +172,7 @@ class WorkoutItemViewModel(
     ) {
         remoteDataSource.signingJwk = signingJwk
         remoteDataSource.webId = webId
+        remoteDataSource.clearStorageCache()
         remoteDataSource.expirationTime = expirationTime
         remoteDataSource.accessToken = accessToken
 
@@ -191,20 +194,31 @@ class WorkoutItemViewModel(
     fun fetchAllOnceForBenchmark() {
         val trace = FirebasePerformance.getInstance().newTrace("solid_warm_fetch_trace")
         trace.start()
-        // 2. Launch coroutine for the suspending network fetch
         viewModelScope.launch {
             try {
-                // 3. Ensure we have a valid token and storage URI
+                // Ensure we have a valid token and storage URI
                 if (!remoteDataSource.remoteAccessible()) {
                     Log.e("SolidPerf", "Solid remote is not accessible (missing token or WebID).")
                     trace.stop()
                     return@launch
                 }
 
-                // 4. Perform the single server fetch from the Pod container
-                val remoteList = remoteDataSource.fetchRemoteItemList()
+                // HEAD request to compare Last-Modified before doing a full fetch
+                val remoteLastModified = remoteDataSource.fetchRemoteLastModified()
+                val localLastModified = repository.getLastModified()
+                Log.d("SolidPerf", "warm HEAD check — remote=$remoteLastModified local=$localLastModified")
+                if (remoteLastModified != null && remoteLastModified == localLastModified) {
+                    Log.d("SolidPerf", "Pod unchanged (Last-Modified matches). Skipping full fetch.")
+                    trace.stop()
+                    return@launch
+                }
 
-                // Now this will count the actual workout UUIDs returned from the Pod!
+                // Perform the full fetch from the Pod container
+                val remoteList = remoteDataSource.fetchRemoteItemList()
+                if (remoteLastModified != null) {
+                    repository.setLastModified(remoteLastModified)
+                }
+
                 Log.d("SolidPerf", "Successfully fetched ${remoteList.size} workouts from Solid Pod.")
                 trace.stop()
             } catch (e: Exception) {
@@ -214,46 +228,46 @@ class WorkoutItemViewModel(
         }
     }
     
-    suspend fun storeCredentialsFromServerJson(
-        tokenStore: AuthTokenStore,
-        raw: String
-    ): Boolean {
-        val trimmed = raw.trim()
-
-        if (trimmed.equals("access denied", ignoreCase = true)) return false
-
-        // If server still returns "access granted" without JSON, you can't store anything.
-        if (!trimmed.startsWith("{")) {
-            throw IllegalStateException("Expected JSON credentials, got: $trimmed")
-        }
-
-        val obj = JSONObject(trimmed)
-
-        // Your server payload keys (from the changes you’re making):
-        // status, webId, accessToken, refreshToken, expiresAt, signingKey
-        val status = obj.optString("status")
-        if (status.isNotBlank() && status != "granted") return false
-
-        val webId = obj.getString("webId")
-        val accessToken = obj.getString("accessToken")
-        val expiresAtSeconds = obj.optLong("expiresAt")
-        val expiresAtMs = expiresAtSeconds * 1000L
-        val signingKey = obj.optString("signingKey", "")
-        val refreshToken = obj.optString("refreshToken", "")
-
-        tokenStore.setWebId(webId)
-        tokenStore.setAccessToken(accessToken)
-        tokenStore.setTokenExpiresAt(expiresAtMs)
-
-        if (signingKey.isNotBlank() && signingKey != "null") {
-            tokenStore.setSigner(signingKey)
-        }
-        if (refreshToken.isNotBlank() && refreshToken != "null") {
-            tokenStore.setRefreshToken(refreshToken)
-        }
-
-        return true
-    }
+//    suspend fun storeCredentialsFromServerJson(
+//        tokenStore: AuthTokenStore,
+//        raw: String
+//    ): Boolean {
+//        val trimmed = raw.trim()
+//
+//        if (trimmed.equals("access denied", ignoreCase = true)) return false
+//
+//        // If server still returns "access granted" without JSON, you can't store anything.
+//        if (!trimmed.startsWith("{")) {
+//            throw IllegalStateException("Expected JSON credentials, got: $trimmed")
+//        }
+//
+//        val obj = JSONObject(trimmed)
+//
+//        // Your server payload keys (from the changes you’re making):
+//        // status, webId, accessToken, refreshToken, expiresAt, signingKey
+//        val status = obj.optString("status")
+//        if (status.isNotBlank() && status != "granted") return false
+//
+//        val webId = obj.getString("webId")
+//        val accessToken = obj.getString("accessToken")
+//        val expiresAtSeconds = obj.optLong("expiresAt")
+//        val expiresAtMs = expiresAtSeconds * 1000L
+//        val signingKey = obj.optString("signingKey", "")
+//        val refreshToken = obj.optString("refreshToken", "")
+//
+//        tokenStore.setWebId(webId)
+//        tokenStore.setAccessToken(accessToken)
+//        tokenStore.setTokenExpiresAt(expiresAtMs)
+//
+//        if (signingKey.isNotBlank() && signingKey != "null") {
+//            tokenStore.setSigner(signingKey)
+//        }
+//        if (refreshToken.isNotBlank() && refreshToken != "null") {
+//            tokenStore.setRefreshToken(refreshToken)
+//        }
+//
+//        return true
+//    }
 
     private fun normalizeWebIdForInrupt(webId: String): String {
         val w = webId.trim()
@@ -264,82 +278,86 @@ class WorkoutItemViewModel(
     }
 
 
-    fun requestAccessAndSelectWebId(webId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val app = application as WorkoutItemSolidApplication
-                val tokenStore = AuthTokenStore(app.applicationContext)
-                val recentStore = RecentWebIdStore(app.applicationContext)
-
-                val normalized = normalizeWebIdForInrupt(webId)
-
-                val json = app.credentialClient.requestCredentialsJson(normalized)
-                val obj = JSONObject(json)
-
-                when (obj.optString("status")) {
-                    "granted" -> {
-                        val accessToken = obj.optString("accessToken", "")
-                        if (accessToken.isBlank()) {
-                            Log.e("CredentialManager", "Granted but missing accessToken. Payload=$json")
-                            return@launch
-                        }
-
-                        tokenStore.setAccessToken(accessToken)
-                        val storedWebId = normalizeWebIdForInrupt(obj.optString("webId", normalized))
-                        tokenStore.setWebId(storedWebId)
-
-                        val refresh = obj.optString("refreshToken", "")
-                        if (refresh.isNotBlank() && refresh != "null") {
-                            tokenStore.setRefreshToken(refresh)
-                        }
-
-                        val expiresAtSeconds = obj.optLong("expiresAt", 0L)
-                        if (expiresAtSeconds > 0L) {
-                            val expiresAtMs = expiresAtSeconds * 1000L
-                            tokenStore.setTokenExpiresAt(expiresAtMs)
-                        }
-
-                        val signingKey = obj.optString("signingKey", "")
-                        if (signingKey.isNotBlank() && signingKey != "null") {
-                            tokenStore.setSigner(signingKey)
-                        }
-
-                        if (signingKey.isBlank() || signingKey == "null" || !signingKey.trim().startsWith("{")) {
-                            Log.e("CredentialManager", "Bad signingKey format (must be JSON JWK). signingKey=$signingKey")
-                            return@launch
-                        }
-
-                        // store as "recent"
-                        recentStore.add(normalized)
-
-                        // IMPORTANT: prime remoteDataSource so remote fetch/insert works immediately
-                        setRemoteRepositoryData(
-                            accessToken = accessToken,
-                            signingJwk = signingKey,
-                            webId = storedWebId,
-                            expirationTime = if (expiresAtSeconds > 0L) expiresAtSeconds * 1000L else 0L
-                        )
-
-                        // proceed with your existing workflow
-                        updateWebId(storedWebId)
-                    }
-
-                    "denied" -> {
-                        Log.d("CredentialManager", "Access denied for $normalized")
-                    }
-
-                    else -> {
-                        Log.e("CredentialManager", "Credential manager error: ${obj.optString("message")} payload=$json")
-                    }
-                }
-            } catch (t: Throwable) {
-                Log.e("CredentialManager", "Access request failed", t)
-            }
-        }
-    }
+//    fun requestAccessAndSelectWebId(webId: String) {
+//        viewModelScope.launch(Dispatchers.IO) {
+//            try {
+//                val app = application as WorkoutItemSolidApplication
+//                val tokenStore = AuthTokenStore(app.applicationContext)
+//                val recentStore = RecentWebIdStore(app.applicationContext)
+//
+//                val normalized = normalizeWebIdForInrupt(webId)
+//
+//                val json = app.credentialClient.requestCredentialsJson(normalized)
+//                val obj = JSONObject(json)
+//
+//                when (obj.optString("status")) {
+//                    "granted" -> {
+//                        val accessToken = obj.optString("accessToken", "")
+//                        if (accessToken.isBlank()) {
+//                            Log.e("CredentialManager", "Granted but missing accessToken. Payload=$json")
+//                            return@launch
+//                        }
+//
+//                        tokenStore.setAccessToken(accessToken)
+//                        val storedWebId = normalizeWebIdForInrupt(obj.optString("webId", normalized))
+//                        tokenStore.setWebId(storedWebId)
+//
+//                        val refresh = obj.optString("refreshToken", "")
+//                        if (refresh.isNotBlank() && refresh != "null") {
+//                            tokenStore.setRefreshToken(refresh)
+//                        }
+//
+//                        val expiresAtSeconds = obj.optLong("expiresAt", 0L)
+//                        if (expiresAtSeconds > 0L) {
+//                            val expiresAtMs = expiresAtSeconds * 1000L
+//                            tokenStore.setTokenExpiresAt(expiresAtMs)
+//                        }
+//
+//                        val signingKey = obj.optString("signingKey", "")
+//                        if (signingKey.isNotBlank() && signingKey != "null") {
+//                            tokenStore.setSigner(signingKey)
+//                        }
+//
+//                        if (signingKey.isBlank() || signingKey == "null" || !signingKey.trim().startsWith("{")) {
+//                            Log.e("CredentialManager", "Bad signingKey format (must be JSON JWK). signingKey=$signingKey")
+//                            return@launch
+//                        }
+//
+//                        // store as "recent"
+//                        recentStore.add(normalized)
+//
+//                        // IMPORTANT: prime remoteDataSource so remote fetch/insert works immediately
+//                        setRemoteRepositoryData(
+//                            accessToken = accessToken,
+//                            signingJwk = signingKey,
+//                            webId = storedWebId,
+//                            expirationTime = if (expiresAtSeconds > 0L) expiresAtSeconds * 1000L else 0L
+//                        )
+//
+//                        // proceed with your existing workflow
+//                        updateWebId(storedWebId)
+//                    }
+//
+//                    "denied" -> {
+//                        Log.d("CredentialManager", "Access denied for $normalized")
+//                    }
+//
+//                    else -> {
+//                        Log.e("CredentialManager", "Credential manager error: ${obj.optString("message")} payload=$json")
+//                    }
+//                }
+//            } catch (t: Throwable) {
+//                Log.e("CredentialManager", "Access request failed", t)
+//            }
+//        }
+//    }
 
 
     fun updateWebId(webId: String) {
+        runBlocking {
+            delay(20000)
+        }
+
         viewModelScope.launch {
             try {
                 repository.insertWebId(webId)
@@ -351,25 +369,36 @@ class WorkoutItemViewModel(
 
             try {
                 if (remoteDataSource.remoteAccessible()) {
+                    // HEAD request to compare Last-Modified before doing a full fetch
+                    val remoteLastModified = remoteDataSource.fetchRemoteLastModified()
+                    val localLastModified = repository.getLastModified()
+                    if (remoteLastModified != null && remoteLastModified == localLastModified) {
+                        Log.d("WorkoutItemViewModel", "Pod unchanged (Last-Modified matches). Skipping full fetch.")
+                        loadLocalData()
+                        return@launch
+                    }
+
                     val fetchTrace = FirebasePerformance.getInstance().newTrace("solid_cold_fetch_trace_real")
                     fetchTrace.start()
-                    // 1. Fetch the absolute truth from the Pod
+                    // Fetch the absolute truth from the Pod
                     val remote = remoteDataSource.fetchRemoteItemList()
 
                     fetchTrace.stop()
 
-                    // 2. Overwrite the local database entirely with the Pod's data
+                    if (remoteLastModified != null) {
+                        repository.setLastModified(remoteLastModified)
+                    }
+
+                    // Overwrite the local database entirely with the Pod's data
                     repository.overwriteModelWithList(remote)
 
-                    // 3. Sync media and update the UI
+                    // Sync media and update the UI
                     syncRemoteImages(remote)
 
                     withContext(Dispatchers.Main) {
                         _allItems.value = remote.sortedWith(workoutComparator)
                     }
 
-                    // REMOVED: pushRemoteWithRefreshRetry(merged)
-                    // We no longer push back to the Pod during a fetch/refresh!
                 } else {
                     // Offline fallback: load local data
                     loadLocalData()
@@ -381,7 +410,6 @@ class WorkoutItemViewModel(
         }
     }
 
-    // Helper function to keep the catch block clean
     private suspend fun loadLocalData() {
         val local = repository.allWorkoutItemsAsFlow.firstOrNull() ?: emptyList()
         withContext(Dispatchers.Main) {
@@ -391,7 +419,7 @@ class WorkoutItemViewModel(
 
     fun insert(item: WorkoutItem) {
         viewModelScope.launch(Dispatchers.IO) {
-            // 1. Create and start the trace exactly like the Firebase app
+            // Create and start the trace exactly like the Firebase app
             val trace = com.google.firebase.perf.FirebasePerformance.getInstance().newTrace("solid_workout_insert_trace")
             trace.start()
 
@@ -441,7 +469,6 @@ class WorkoutItemViewModel(
             } catch (t: Throwable) {
                 Log.e("WorkoutViewModel", "Failed to insert and sync workout.", t)
             } finally {
-                // 2. Stop the trace no matter what happens (success or failure)
                 trace.stop()
             }
         }
@@ -470,7 +497,7 @@ class WorkoutItemViewModel(
         }
     }
 
-    private suspend fun deleteRemoteImageIfUnused(
+    private fun deleteRemoteImageIfUnused(
         deletedMediaUri: String,
         remainingItems: List<WorkoutItem>
     ) {
@@ -510,12 +537,12 @@ class WorkoutItemViewModel(
         loader.diskCache?.remove(fullUrl)
     }
 
-    suspend fun updateRemote() {
-        if (!remoteDataSource.remoteAccessible()) return
-        val list = repository.allWorkoutItemsAsFlow.firstOrNull().orEmpty()
-        val sanitized = sanitizeForPod(list)
-        pushRemoteWithRefreshRetry(sanitized)
-    }
+//    suspend fun updateRemote() {
+//        if (!remoteDataSource.remoteAccessible()) return
+//        val list = repository.allWorkoutItemsAsFlow.firstOrNull().orEmpty()
+//        val sanitized = sanitizeForPod(list)
+//        pushRemoteWithRefreshRetry(sanitized)
+//    }
 
     fun update(item: WorkoutItem) {
         require(item.id.isNotBlank()) { "update() called with blank id" }
@@ -601,15 +628,15 @@ class WorkoutItemViewModel(
         return item.copy(mediaUri = relative)
     }
 
-    private suspend fun sanitizeForPod(items: List<WorkoutItem>): List<WorkoutItem> =
-        items.map {
-            try {
-                ensureRemoteMedia(it)
-            } catch (e: Exception) {
-                Log.w("WorkoutViewModel", "Failed to sanitize item ${it.id} for pod, skipping media upload.", e)
-                it
-            }
-        }
+//    private suspend fun sanitizeForPod(items: List<WorkoutItem>): List<WorkoutItem> =
+//        items.map {
+//            try {
+//                ensureRemoteMedia(it)
+//            } catch (e: Exception) {
+//                Log.w("WorkoutViewModel", "Failed to sanitize item ${it.id} for pod, skipping media upload.", e)
+//                it
+//            }
+//        }
 
     private var storageRootCache: String? = null
 

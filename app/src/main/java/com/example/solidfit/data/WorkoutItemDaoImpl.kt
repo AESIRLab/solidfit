@@ -292,6 +292,15 @@ public class WorkoutItemDaoImpl(
     modelLiveData.value = getAllWorkoutItems()
   }
 
+  override fun getLastModified(): String? {
+    val file = File(baseDir, "$saveFilePath.lastmodified")
+    return if (file.exists()) file.readText().trim().ifEmpty { null } else null
+  }
+
+  override fun setLastModified(value: String) {
+    File(baseDir, "$saveFilePath.lastmodified").writeText(value)
+  }
+
   override fun getWorkoutItemByIdAsFlow(id: String): Flow<WorkoutItem> {
     val toSearch = ResourceFactory.createResource("$baseUri#$id")
     if (model.containsResource(toSearch)) {

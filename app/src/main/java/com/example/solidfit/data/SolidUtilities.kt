@@ -160,6 +160,17 @@ public suspend fun getStorage(webId: String): String {
   }
 }
 
+public fun generateHeadRequest(
+  resourceUri: String,
+  accessToken: String,
+  signingJwk: String,
+): Request = Request.Builder()
+  .url(resourceUri)
+  .addHeader("DPoP", generateCustomToken("HEAD", resourceUri, signingJwk))
+  .addHeader("Authorization", "DPoP $accessToken")
+  .method("HEAD", null)
+  .build()
+
 public fun generateGetRequest(
   resourceUri: String,
   accessToken: String,
