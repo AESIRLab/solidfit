@@ -9,9 +9,9 @@ plugins {
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.compose.compiler) apply false
 
-    alias(libs.plugins.ksp) apply false
-    id("com.google.firebase.firebase-perf") version "2.0.2" apply false
-//    application
+    id("com.google.devtools.ksp") version "2.0.21-1.0.25"
+    id("com.google.firebase.firebase-perf") version "1.4.2" apply false
+    application
 }
 
 buildscript {

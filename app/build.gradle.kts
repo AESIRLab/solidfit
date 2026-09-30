@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.Delete
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -6,7 +8,7 @@ plugins {
     alias(libs.plugins.ksp)
 //    id("com.google.devtools.ksp") version "2.0.21-1.0.25"
     alias(libs.plugins.compose.compiler)
-//    id("com.google.firebase.firebase-perf")
+    id("com.google.firebase.firebase-perf")
 }
 
 buildscript {
@@ -17,16 +19,17 @@ buildscript {
 }
 
 android {
-    namespace = "com.example.solidhealth"
+    namespace = "com.example.solidfit"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.solidhealth"
+        applicationId = "com.example.solidfit"
         minSdk = 30
         targetSdk = 35
         versionCode = 1
         versionName = "2.4.12"
-        manifestPlaceholders["appAuthRedirectScheme"] = "com.example.solidhealth"
+        compileSdkPreview = "VanillaIceCream"
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.example.solidfit"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -51,7 +54,6 @@ android {
         jvmTarget = "1.8"
     }
     kotlin {
-        tasks.register("testClasses")
         jvmToolchain {
             languageVersion.set(JavaLanguageVersion.of(17))
         }
@@ -227,7 +229,7 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.6.0")
 
-//    implementation(libs.firebase.perf)
+    implementation(libs.firebase.perf)
 
     implementation(libs.unified.push) {
         exclude("com.google.protobuf", "protobuf-java")

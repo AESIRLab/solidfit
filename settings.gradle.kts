@@ -40,7 +40,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "solidhealth"
+rootProject.name = "solidfit"
 include(":app")
 //include(":app:solid-auth")
 //include(":app:solid-annotation")

@@ -73,22 +73,22 @@
     <!--  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ -->
 
     <application
-        android:name="HealthItemSolidApplication"
+        android:name="WorkoutItemSolidApplication"
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@drawable/heart_plus_black_46dp"
+        android:icon="@drawable/exercise_black_46dp"
         android:label="@string/app_name"
-        android:roundIcon="@drawable/heart_plus_black_46dp"
+        android:roundIcon="@drawable/exercise_black_46dp"
         android:supportsRtl="true"
-        android:theme="@style/Theme.SolidHealth"
+        android:theme="@style/Theme.SolidFit"
         tools:targetApi="31">
 <!--        <service android:name=".locationdata.LocationService" android:foregroundServiceType="location" />-->
         <activity
             android:name="MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.SolidHealth">
+            android:theme="@style/Theme.SolidFit">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
