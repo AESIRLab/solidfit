@@ -67,6 +67,9 @@ android {
         compose = true
         aidl = true
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
@@ -199,6 +202,8 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     androidTestImplementation(libs.androidx.core.testing)
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1") {
         exclude(group = "com.android.support", module = "support-annotations")

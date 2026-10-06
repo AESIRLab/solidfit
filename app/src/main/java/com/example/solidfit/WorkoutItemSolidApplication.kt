@@ -4,7 +4,6 @@ import android.app.Application
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
-import com.example.solidfit.data.CredentialServiceClient
 import com.example.solidfit.data.WorkoutItemRepository
 import com.example.solidfit.healthdata.HealthConnectManager
 import com.example.solidfit.data.WorkoutItemDatabase
@@ -13,14 +12,6 @@ import java.io.File
 //needed
 //val Context.dataStore: DataStore<Preferences> by preferencesDataStore("userData")
 class WorkoutItemSolidApplication: Application(), ImageLoaderFactory {
-    lateinit var credentialClient: CredentialServiceClient
-        private set
-
-    override fun onCreate() {
-        super.onCreate()
-        credentialClient = CredentialServiceClient(applicationContext).also { it.bind() }
-    }
-
 
     val healthConnectManager by lazy {
         HealthConnectManager(this)

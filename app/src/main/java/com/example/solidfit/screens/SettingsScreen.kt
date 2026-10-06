@@ -115,11 +115,12 @@ fun SettingsScreen(
         // Sign Out Button
         Button(onClick = {
             coroutineScope.launch(Dispatchers.IO) {
-                tokenStore.clearAuth() // if you have this helper, use it
+                tokenStore.clearAuth()
+                tokenStore.setSignInProblem("", "")
             }
             Toast.makeText(context, "Signed out", Toast.LENGTH_SHORT).show()
 
-            navController.navigate(SolidAuthFlowScreen.CredentialManagerAuthScreen.name) {
+            navController.navigate(SolidAuthFlowScreen.ScmSignInScreen.name) {
                 popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
                 launchSingleTop = true
             }

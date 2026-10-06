@@ -43,6 +43,7 @@ import com.example.solidfit.data.AuthTokenStore
 import com.example.solidfit.tryRefreshTokens
 import kotlinx.coroutines.flow.firstOrNull
 import com.example.solidfit.data.RecentWebIdStore
+import com.example.solidfit.data.ScmClient
 //import com.google.firebase.perf.FirebasePerformance
 import com.hp.hpl.jena.query.QueryExecutionFactory
 import com.hp.hpl.jena.query.QueryFactory
@@ -145,7 +146,7 @@ class WorkoutItemViewModel(
                 val app = application as WorkoutItemSolidApplication
                 val recentStore = RecentWebIdStore(app.applicationContext)
 
-                val webIds = app.credentialClient.fetchWebIds()
+                val webIds = ScmClient.listWebIds(app).orEmpty()
                 webIds.forEach { recentStore.add(it) }
 
                 Log.d("CredentialManager", "Fetched ${webIds.size} webIds from service")
@@ -915,13 +916,15 @@ class WorkoutItemViewModel(
             Log.w("WorkoutViewModel", "Remote update failed, attempting refresh+retry", e)
         }
 
-        val newAccessToken = tryRefreshTokens(application.applicationContext, tokenStore)
+        val newAccessToken = tryRefreshTokens(tokenStore)
         if (newAccessToken == null) {
             Log.w("WorkoutViewModel", "Refresh failed; remote update will be retried later")
             return
         }
 
         remoteDataSource.accessToken = newAccessToken
+        // An SCM re-login can bind the new token to a new DPoP key.
+        tokenStore.getSigner().firstOrNull()?.takeIf { it.isNotBlank() }?.let { remoteDataSource.signingJwk = it }
 
         val newExp = tokenStore.getTokenExpiresAt().firstOrNull()
 

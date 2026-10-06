@@ -63,10 +63,8 @@
             <action android:name="org.unifiedpush.android.distributor.REGISTER" />
         </intent>
     </queries>
-    <uses-permission android:name="com.zybooks.solidcredentialmanager.SOLID_CREDENTIALS_PROVIDER" />
-    <!-- Credential manager perms -->
-    <queries >
-        <provider android:authorities="com.zybooks.solidcredentialmanager.contentprovider" />
+    <!-- Lets this app bind to the Solid Credential Manager on Android 11+. -->
+    <queries>
         <package android:name="com.zybooks.solidcredentialmanager" />
     </queries>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -99,10 +97,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
+                <!-- Unique to this app, so the browser fallback never opens SolidHealth instead. -->
                 <data
-                    android:host="www.solid-oidc.com"
+                    android:host="auth"
                     android:pathPrefix="/callback"
-                    android:scheme="app" />
+                    android:scheme="com.example.solidfit" />
             </intent-filter>
             <!-- Health Connect Intent -->
             <!-- Permission handling for Android 13 and before -->

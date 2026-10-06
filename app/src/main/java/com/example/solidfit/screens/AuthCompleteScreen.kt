@@ -7,6 +7,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import com.example.solidfit.data.AuthTokenStore
 import com.nimbusds.jwt.SignedJWT
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -21,6 +22,7 @@ private const val TAG = "AuthCompleteScreen"
 fun AuthCompleteScreen(
     tokenStore: AuthTokenStore,
     onFinishedAuth: () -> Unit,
+    onFailedAuth: () -> Unit,
 ) {
     val context = LocalContext.current
     val intentData = (context as Activity).intent.data
@@ -42,14 +44,21 @@ fun AuthCompleteScreen(
         didExchange = true
 
         val ok = withContext(Dispatchers.IO) {
-            preliminaryAuth(tokenStore, code)
+            try {
+                preliminaryAuth(tokenStore, code)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Token exchange threw", e)
+                false
+            }
         }
 
         if (ok) {
             onFinishedAuth()
         } else {
-            // Stay on this screen; you can add UI/Toast if you want.
-            Log.e(TAG, "Auth failed; not navigating forward")
+            Log.e(TAG, "Auth failed; returning to sign-in")
+            onFailedAuth()
         }
     }
 }
@@ -65,6 +74,7 @@ private suspend fun preliminaryAuth(tokenStore: AuthTokenStore, code: String): B
     val redirectUri = tokenStore.getRedirectUri().first()
 
     val clientSecret = rClientSecret.takeIf { it.isNotBlank() }
+    Log.d(TAG, "Exchanging code for client_id=$clientId hasSecret=${clientSecret != null}")
 
     val dpop = generateDPoPKey()
     tokenStore.setSigner(JSONObject(dpop.toJSONObject()).toString())

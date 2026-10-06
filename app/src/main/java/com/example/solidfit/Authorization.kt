@@ -3,45 +3,39 @@ package com.example.solidfit
 import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navDeepLink
 import com.example.solidfit.data.AuthTokenStore
-import com.example.solidfit.data.CredentialServiceClient
 import com.example.solidfit.healthdata.HealthConnectManager
+import com.example.solidfit.screens.AuthCompleteScreen
+import com.example.solidfit.screens.ScmSignInScreen
+import com.example.solidfit.screens.StartAuthScreen
+import com.example.solidfit.screens.UnfetchableWebIdScreen
 import com.example.solidfit.screens.UpdateWorkouts
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import com.example.solidfit.screens.StartAuthScreen
-import com.nimbusds.jwt.SignedJWT
-import com.example.solidfit.discoverTokenEndpoint
 
 // All apps screens
 enum class SolidAuthFlowScreen {
@@ -57,8 +51,8 @@ enum class SolidAuthFlowScreen {
     WorkoutCardScreen,
     UnfetchableWebIdScreen,
     UpdateWorkouts,
-    CredentialManagerAuthScreen,
     SummaryScreen,
+    ScmSignInScreen,
 }
 
 
@@ -90,11 +84,13 @@ fun Authorization(
     val navController = rememberNavController()
     val context = LocalContext.current
     val tokenStore = remember { AuthTokenStore(context.applicationContext) }
+    val coroutineScope = rememberCoroutineScope()
 
     NavHost(
         navController = navController,
         startDestination = SolidAuthFlowScreen.LandingScreen.name
     ) {
+        // SCREEN: Landing Screen
         composable(SolidAuthFlowScreen.LandingScreen.name) {
             LandingGate(
                 tokenStore = tokenStore,
@@ -105,7 +101,7 @@ fun Authorization(
                     }
                 },
                 onNeedsLogin = {
-                    navController.navigate(SolidAuthFlowScreen.CredentialManagerAuthScreen.name) {
+                    navController.navigate(SolidAuthFlowScreen.ScmSignInScreen.name) {
                         popUpTo(SolidAuthFlowScreen.LandingScreen.name) { inclusive = true }
                         launchSingleTop = true
                     }
@@ -113,18 +109,78 @@ fun Authorization(
             )
         }
 
-        composable(SolidAuthFlowScreen.CredentialManagerAuthScreen.name) {
-            CredentialManagerLoginScreen(
+        // SCREEN: Sign in through the Solid Credential Manager (browser only when it's unavailable)
+        composable(SolidAuthFlowScreen.ScmSignInScreen.name) {
+            ScmSignInScreen(
                 tokenStore = tokenStore,
-                onLoginSuccess = {
+                onSignedIn = {
                     navController.navigate(SolidAuthFlowScreen.UpdateWorkouts.name) {
-                        popUpTo(SolidAuthFlowScreen.CredentialManagerAuthScreen.name) { inclusive = true }
+                        popUpTo(SolidAuthFlowScreen.ScmSignInScreen.name) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onUseBrowser = {
+                    navController.navigate(SolidAuthFlowScreen.StartAuthScreen.name) {
+                        popUpTo(SolidAuthFlowScreen.ScmSignInScreen.name) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        // SCREEN: Start Authentication
+        composable(route = SolidAuthFlowScreen.StartAuthScreen.name) {
+            StartAuthScreen(
+                tokenStore = tokenStore,
+                onFailNavigation = {
+                    coroutineScope.launch {
+                        withContext(Dispatchers.Main) {
+                            navController.navigate(SolidAuthFlowScreen.UnfetchableWebIdScreen.name)
+                        }
+                    }
+                },
+                onInvalidInput = { msg ->
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(context, msg.toString(), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
+
+        // SCREEN: UnfetchableWebID
+        composable(route = SolidAuthFlowScreen.UnfetchableWebIdScreen.name) {
+            UnfetchableWebIdScreen(tokenStore = tokenStore) { err ->
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        // SCREEN: Authentication complete
+        composable(
+            route = SolidAuthFlowScreen.AuthCompleteScreen.name,
+            deepLinks = listOf(navDeepLink { uriPattern = "com.example.solidfit://auth/callback" })
+        ) {
+            AuthCompleteScreen(
+                tokenStore = tokenStore,
+                onFinishedAuth = {
+                    coroutineScope.launch { tokenStore.setAuthSource(AuthTokenStore.AUTH_SOURCE_BROWSER) }
+                    navController.navigate(SolidAuthFlowScreen.UpdateWorkouts.name) {
+                        popUpTo(SolidAuthFlowScreen.AuthCompleteScreen.name) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onFailedAuth = {
+                    Toast.makeText(context, "Sign-in failed. Please try again.", Toast.LENGTH_SHORT).show()
+                    navController.navigate(SolidAuthFlowScreen.StartAuthScreen.name) {
+                        popUpTo(SolidAuthFlowScreen.AuthCompleteScreen.name) { inclusive = true }
                         launchSingleTop = true
                     }
                 }
             )
         }
 
+        // SCREEN: UpdateWorkouts
         composable(SolidAuthFlowScreen.UpdateWorkouts.name) {
             RequireValidAuthToken(
                 tokenStore = tokenStore,
@@ -146,7 +202,6 @@ private fun LandingGate(
     onValidToken: () -> Unit,
     onNeedsLogin: () -> Unit,
 ) {
-    val context = LocalContext.current
     // simple loading UI
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -158,8 +213,7 @@ private fun LandingGate(
     }
 
     LaunchedEffect(Unit) {
-        val now = System.currentTimeMillis()
-        val skew = 60_000L // 1 minute
+        val skew = refreshLeadMs(tokenStore)
 
         suspend fun looksValid(): Boolean {
             val webId = tokenStore.getWebId().first()
@@ -181,10 +235,11 @@ private fun LandingGate(
 
         // If not valid, try refresh before forcing login
         val refreshToken = tokenStore.getRefreshToken().first()
-        val canRefresh = refreshToken.isNotBlank() && refreshToken != "null"
+        val isScmSession = tokenStore.getAuthSource().first() == AuthTokenStore.AUTH_SOURCE_SCM
+        val canRefresh = isScmSession || (refreshToken.isNotBlank() && refreshToken != "null")
 
         if (canRefresh) {
-            val refreshed = tryRefreshTokens(context, tokenStore)
+            val refreshed = tryRefreshTokens(tokenStore)
             if (refreshed != null && looksValid()) {
                 withContext(Dispatchers.Main) {
                     onValidToken()
@@ -195,178 +250,6 @@ private fun LandingGate(
 
         withContext(Dispatchers.Main) {
             onNeedsLogin()
-        }    }
-}
-
-@Composable
-private fun CredentialManagerLoginScreen(
-    tokenStore: AuthTokenStore,
-    onLoginSuccess: () -> Unit
-) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-
-    // Service client (from your app code)
-    val credentialClient = remember {
-        CredentialServiceClient(context.applicationContext)
-    }
-
-    // Bind/unbind with lifecycle of this screen
-    DisposableEffect(Unit) {
-        credentialClient.bind()
-        onDispose { credentialClient.unbind() }
-    }
-
-    var loadingWebIds by remember { mutableStateOf(true) }
-    var webIds by remember { mutableStateOf<List<String>>(emptyList()) }
-    var statusText by remember { mutableStateOf("Connecting to credential manager…") }
-    var requestInFlight by remember { mutableStateOf(false) }
-
-    // Fetch available WebIDs once service is up
-    LaunchedEffect(Unit) {
-        loadingWebIds = true
-        statusText = "Loading WebIDs…"
-
-        // The bind is async; this “retry loop” avoids crashing if the service
-        // isn't connected yet when fetchWebIds() runs.
-        repeat(40) {
-            try {
-                webIds = withContext(Dispatchers.IO) { credentialClient.fetchWebIds() }
-                loadingWebIds = false
-                statusText = if (webIds.isEmpty()) "No WebIDs found in credential manager." else "Select a WebID:"
-                return@LaunchedEffect
-            } catch (e: Throwable) {
-                delay(250)
-            }
-        }
-
-        loadingWebIds = false
-        statusText = "Credential service not ready (timed out)."
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(statusText)
-
-        if (loadingWebIds) {
-            CircularProgressIndicator()
-            return@Column
-        }
-
-        if (webIds.isEmpty()) {
-            Button(
-                enabled = !requestInFlight,
-                onClick = {
-                    // re-try fetching webids
-                    coroutineScope.launch {
-                        loadingWebIds = true
-                        try {
-                            webIds = withContext(Dispatchers.IO) { credentialClient.fetchWebIds() }
-                            statusText = if (webIds.isEmpty()) "No WebIDs found in credential manager." else "Select a WebID:"
-                        } catch (e: Throwable) {
-                            statusText = "Failed to fetch WebIDs: ${e.message}"
-                        } finally {
-                            loadingWebIds = false
-                        }
-                    }
-                }
-            ) { Text("Retry") }
-            return@Column
-        }
-
-        webIds.forEach { webId ->
-            Button(
-                enabled = !requestInFlight,
-                onClick = {
-                    requestInFlight = true
-                    statusText = "Requesting credentials for: $webId"
-
-                    coroutineScope.launch {
-                        try {
-                            val rawJson = withContext(Dispatchers.IO) {
-                                credentialClient.requestCredentialsJson(webId)
-                            }
-
-                            val obj = JSONObject(rawJson)
-                            val status = obj.optString("status")
-
-                            if (status != "granted") {
-                                statusText = "Not granted: ${obj.optString("message", rawJson)}"
-                                requestInFlight = false
-                                return@launch
-                            }
-                            val returnedClientSecret = obj.optString("clientSecret", "")
-
-                            if (returnedClientSecret.isNotBlank() && returnedClientSecret != "null") {
-                                tokenStore.setClientSecret(returnedClientSecret)
-                            }
-                            val returnedClientId = obj.optString("clientId", "")
-                            val returnedTokenUri = obj.optString("tokenUri", "")
-                            // Save them to your DataStore
-                            if (returnedClientId.isNotBlank() && returnedClientId != "null") {
-                                tokenStore.setClientId(returnedClientId)
-                            }
-                            if (returnedTokenUri.isNotBlank() && returnedTokenUri != "null") {
-                                tokenStore.setTokenUri(returnedTokenUri)
-                            }
-                            val grantedWebIdRaw = obj.optString("webId", webId).trim()
-                            val grantedWebId =
-                                if (grantedWebIdRaw.startsWith("https://id.inrupt.com/") && !grantedWebIdRaw.contains("#"))
-                                    "$grantedWebIdRaw#me"
-                                else grantedWebIdRaw
-                            val accessToken = obj.optString("accessToken")
-                            val refreshToken = if (obj.isNull("refreshToken")) "" else obj.optString("refreshToken").trim()
-                            val cleanedRefreshToken = refreshToken.takeIf { it.isNotBlank() && it.lowercase() != "null" } ?: ""
-                            val rawExp = obj.optLong("expiresAt", 0L)
-                            val expiresAtMs = when {
-                                rawExp in 1L..9_999_999_999L -> rawExp * 1000L  // seconds -> ms
-                                rawExp > 0L -> rawExp                           // already ms
-                                else -> 0L
-                            }
-                            val signingKey = obj.optString("signingKey")
-
-                            tokenStore.setWebId(grantedWebId)
-                            tokenStore.setAccessToken(accessToken)
-                            runCatching {
-                                val jwt = SignedJWT.parse(accessToken)
-                                val issuer = jwt.jwtClaimsSet.issuer ?: ""
-//                                val clientId = jwt.jwtClaimsSet.getStringClaim("client_id") ?: ""
-//
-//                                if (clientId.isNotBlank()) tokenStore.setClientId(clientId)
-
-                                if (issuer.isNotBlank()) {
-                                    val tokenEndpoint = discoverTokenEndpoint(issuer)
-                                    if (tokenEndpoint.isNotBlank()) tokenStore.setTokenUri(tokenEndpoint)
-                                }
-                            }.onFailure {
-                                Log.w("Authorization", "Failed to derive clientId/tokenUri: ${it.message}")
-                            }
-
-                            val cleanedSigningKey = if (signingKey.startsWith("\"{")) {
-                                signingKey.removeSurrounding("\"").replace("\\\"", "\"")
-                            } else {
-                                signingKey
-                            }
-                            tokenStore.setRefreshToken(cleanedRefreshToken)
-                            tokenStore.setTokenExpiresAt(expiresAtMs)
-                            tokenStore.setSigner(cleanedSigningKey)
-
-                            Log.d("Authorization", "Stored credentials for $grantedWebId, navigating…")
-                            onLoginSuccess()
-                        } catch (e: Throwable) {
-                            statusText = "Failed: ${e.message}"
-                        } finally {
-                            requestInFlight = false
-                        }
-                    }
-                }
-            ) {
-                Text(webId)
-            }
         }
     }
 }

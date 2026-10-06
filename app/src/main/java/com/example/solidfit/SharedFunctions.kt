@@ -18,6 +18,7 @@ import okhttp3.Response
 import org.aesirlab.mylibrary.generateAuthString
 import org.json.JSONObject
 import com.example.solidfit.data.AuthTokenStore
+import com.example.solidfit.data.refreshScmSession
 import java.security.cert.X509Certificate
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
@@ -73,7 +74,19 @@ private fun buildTokenEndpointDPoP(method: String, url: String, signerJwk: Strin
     return jwt.serialize()
 }
 
-suspend fun tryRefreshTokens(context: android.content.Context, tokenStore: AuthTokenStore): String? = withContext(Dispatchers.IO) {
+/**
+ * Gets a fresh access token for the current session, or null when the session has ended.
+ * SCM sessions ask the Solid Credential Manager (it owns the refresh token); browser sessions
+ * refresh with their own refresh token.
+ */
+suspend fun tryRefreshTokens(tokenStore: AuthTokenStore): String? =
+    if (tokenStore.getAuthSource().first() == AuthTokenStore.AUTH_SOURCE_SCM) {
+        refreshScmSession(tokenStore)
+    } else {
+        refreshBrowserSession(tokenStore)
+    }
+
+private suspend fun refreshBrowserSession(tokenStore: AuthTokenStore): String? = withContext(Dispatchers.IO) {
     try {
         val refreshTokenRaw = tokenStore.getRefreshToken().first().trim()
         val refreshToken = refreshTokenRaw.takeIf { it.isNotBlank() && it.lowercase() != "null" } ?: ""
@@ -82,7 +95,6 @@ suspend fun tryRefreshTokens(context: android.content.Context, tokenStore: AuthT
             return@withContext null
         }
 
-        val webId = tokenStore.getWebId().first()
         val tokenUrl = tokenStore.getTokenUri().first()
         val clientId = tokenStore.getClientId().first()
         val clientSecret = tokenStore.getClientSecret().first().takeIf { it.isNotBlank() }
@@ -133,8 +145,6 @@ suspend fun tryRefreshTokens(context: android.content.Context, tokenStore: AuthT
 
         // expires_in is seconds
         val expiresInSec = json.optLong("expires_in", 0L)
-        var newExpiresAt = now + (expiresInSec * 1000L)
-
         if (expiresInSec > 0L) {
             tokenStore.setTokenExpiresAt(now + expiresInSec * 1000L)
         }
@@ -154,13 +164,6 @@ suspend fun tryRefreshTokens(context: android.content.Context, tokenStore: AuthT
             }
         }
 
-        val syncIntent = android.content.Intent("com.example.solidfit.SYNC_TOKENS")
-        syncIntent.setPackage("com.zybooks.solidcredentialmanager")
-        syncIntent.putExtra("webId", webId)
-        syncIntent.putExtra("accessToken", newAccessToken)
-        syncIntent.putExtra("refreshToken", newRefreshToken)
-        syncIntent.putExtra("expiresAt", newExpiresAt)
-        context.sendBroadcast(syncIntent)
         Log.d(REFRESH_TAG, "Refresh succeeded, expiresAt updated")
 
         return@withContext newAccessToken

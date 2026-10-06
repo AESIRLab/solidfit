@@ -40,7 +40,7 @@ public class SolidUtilities(
     // IMPORTANT: don't use runBlocking inside a suspend function
     var accessToken = tokenStore.getAccessToken().first()
     val storageUri = runBlocking { val webId = tokenStore.getWebId().first(); getStorage(webId) }
-    val signingJwk = tokenStore.getSigner().first()
+    var signingJwk = tokenStore.getSigner().first()
 
     if (storageUri.isBlank() || accessToken.isBlank()) return 600
 
@@ -65,11 +65,13 @@ public class SolidUtilities(
     // 2) if unauthorized, refresh + retry once
     if (code == 401 || code == 403) {
 
-      val newAccessToken = tryRefreshTokens(context, tokenStore)
+      val newAccessToken = tryRefreshTokens(tokenStore)
 
       if (newAccessToken == null) return code
 
       accessToken = tokenStore.getAccessToken().first()
+      // An SCM re-login can bind the new token to a new DPoP key.
+      signingJwk = tokenStore.getSigner().first()
       response = client.newCall(makePut(accessToken)).execute()
       code = response.code
       response.close()

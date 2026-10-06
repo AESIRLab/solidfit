@@ -12,10 +12,10 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.solidfit.data.AuthTokenStore
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 
@@ -24,6 +24,16 @@ fun StartButton(text: String, onClick: () -> Unit) {
     Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = Color.hsl(224f, 1f,0.73f))) {
         Text(text = text, fontSize = 16.sp)
     }
+}
+
+/**
+ * How long before expiry to get a new token: a minute for browser sessions; for SCM sessions
+ * min(2 min, a sixth of the token's lifetime), which stays under the SCM's own refresh threshold.
+ */
+suspend fun refreshLeadMs(tokenStore: AuthTokenStore): Long {
+    if (tokenStore.getAuthSource().first() != AuthTokenStore.AUTH_SOURCE_SCM) return 60_000L
+    val lifetime = (tokenStore.getTokenExpiresAt().first() - tokenStore.getTokenReceivedAt().first()).coerceAtLeast(0L)
+    return minOf(2 * 60_000L, lifetime / 6)
 }
 
 @Composable
@@ -38,7 +48,6 @@ fun RequireValidAuthToken(
 
     // prevents multiple refresh calls if this recomposes quickly
     val refreshMutex = remember { Mutex() }
-    val context = LocalContext.current // Add this
     suspend fun forceLogoutToStart(
         tokenStore: AuthTokenStore,
         navController: NavController
@@ -57,13 +66,13 @@ fun RequireValidAuthToken(
         val exp = expiresAt ?: return@LaunchedEffect
 
         val now = System.currentTimeMillis()
-        val skew = 60_000L
+        val skew = refreshLeadMs(tokenStore)
 
         if (exp <= 0L) return@LaunchedEffect
 
         if (exp <= now + skew) {
             val refreshed = refreshMutex.withLock {
-                withContext(Dispatchers.IO) { tryRefreshTokens(context, tokenStore) }
+                withContext(Dispatchers.IO) { tryRefreshTokens(tokenStore) }
             }
             if (refreshed == null) forceLogoutToStart(tokenStore, navController)
             return@LaunchedEffect
@@ -75,7 +84,7 @@ fun RequireValidAuthToken(
 
         // When near expiry: refresh
         val refreshed = refreshMutex.withLock {
-            withContext(Dispatchers.IO) { tryRefreshTokens(context, tokenStore) }
+            withContext(Dispatchers.IO) { tryRefreshTokens(tokenStore) }
         }
         if (refreshed == null) forceLogoutToStart(navController = navController, tokenStore = tokenStore)
     }

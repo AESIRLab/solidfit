@@ -53,8 +53,6 @@ import com.nimbusds.jose.jwk.ECKey
 import com.nimbusds.jose.jwk.JWK
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
-import com.zybooks.solidcredentialmanager.IAccessRequestCallback
-import com.zybooks.solidcredentialmanager.IAidlTestCredentialService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -65,75 +63,14 @@ import java.util.UUID
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import com.example.solidfit.data.AuthTokenStore
-import com.example.solidfit.data.CredentialServiceClient
 import com.example.solidfit.data.RecentWebIdStore
 
 class MainActivity : ComponentActivity() {
     private lateinit var permLauncher: ActivityResultLauncher<Array<String>>
 
-    private lateinit var credentialService: IAidlTestCredentialService
-    private var serviceBound = false
-
-    private val cb: IAccessRequestCallback.Stub = object : IAccessRequestCallback.Stub() {
-
-        override fun basicTypes(
-            anInt: Int,
-            aLong: Long,
-            aBoolean: Boolean,
-            aFloat: Float,
-            aDouble: Double,
-            aString: String?
-        ) {
-            TODO("Not yet implemented")
-        }
-
-        override fun onResponse(response: String?) {
-            Log.d(TAG, response.toString())
-        }
-
-        override fun onError(message: String?) {
-            Log.d(TAG, message.toString())
-        }
-
-    }
-
-    private val connection = object: ServiceConnection {
-        override fun onServiceDisconnected(name: ComponentName?) {
-            serviceBound = false
-        }
-
-
-
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            serviceBound = true
-            Log.d(TAG, "service connected!")
-            credentialService = IAidlTestCredentialService.Stub.asInterface(service)
-            credentialService.registerAccessRequestCallback(cb)
-//            credentialService.requestWebId("rufufjf", packageName, Instant.now().epochSecond)
-        }
-    }
-
-    override fun onPause() {
-        super.onPause()
-        serviceBound = false
-    }
-
-
-    private fun bindToService() {
-        Log.d(TAG, "binding to service")
-//        val intent = Intent()
-//        intent.setComponent(ComponentName("com.zybooks.solidcredentialmanager", "TestCredentialService"))
-        val intent = Intent("TestCredentialService").also {
-            it.setPackage("com.zybooks.solidcredentialmanager")
-        }
-        val success = bindService(intent, connection, BIND_AUTO_CREATE)
-        Log.d(TAG, "bind result $success")
-    }
-
     @SuppressLint("InlinedApi")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        bindToService()
         val permBatches = mutableListOf<Array<String>>().apply {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 add(arrayOf(POST_NOTIFICATIONS))
@@ -180,18 +117,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private var currentBatchIndex = 0
-
-    override fun onDestroy() {
-        super.onDestroy()
-        try {
-            // "connection" should be the name of the ServiceConnection variable
-            // you created and passed into bindService() earlier in the file.
-            unbindService(connection)
-        } catch (e: IllegalArgumentException) {
-            // Catch this in case the service was never successfully bound
-            Log.w("MainActivity", "Service was already unbound or not bound.")
-        }
-    }
 }
 
 private fun generateCustomToken(signingJwk: String, method: String, uri: String): String {

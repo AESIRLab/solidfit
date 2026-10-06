@@ -95,6 +95,49 @@ public class AuthTokenStore(
 
   public fun getSummaryText(): Flow<String> = dataStore.data.map { it[SUMMARY_TEXT] ?: "" }
 
+  /** Where the current session came from: [AUTH_SOURCE_SCM], [AUTH_SOURCE_BROWSER], or "" when signed out. */
+  public fun getAuthSource(): Flow<String> = dataStore.data.map { it[AUTH_SOURCE] ?: "" }
+
+  public suspend fun setAuthSource(source: String) {
+    dataStore.edit { it[AUTH_SOURCE] = source }
+  }
+
+  /** When the current access token was received, to size the SCM re-request threshold. */
+  public fun getTokenReceivedAt(): Flow<Long> = dataStore.data.map { it[TOKEN_RECEIVED_AT] ?: 0L }
+
+  /** Saves an SCM grant: token, its DPoP key and expiry change together. */
+  suspend fun saveScmSession(webId: String, accessToken: String, dpopKey: String, expiresAt: Long, receivedAt: Long) {
+    dataStore.edit {
+      it[WEB_ID] = webId
+      it[ACCESS_TOKEN] = accessToken
+      it[SIGNER] = dpopKey
+      it[TOKEN_EXPIRES_AT] = expiresAt
+      it[TOKEN_RECEIVED_AT] = receivedAt
+      it[REFRESH_TOKEN] = ""
+      it[AUTH_SOURCE] = AUTH_SOURCE_SCM
+      it[SIGN_IN_PROBLEM] = ""
+      it[SIGN_IN_PROBLEM_WEBID] = ""
+    }
+  }
+
+  /** Why the user was signed out of an SCM session, shown on the sign-in problem screen. */
+  public fun getSignInProblem(): Flow<Pair<String, String>> =
+    dataStore.data.map { (it[SIGN_IN_PROBLEM] ?: "") to (it[SIGN_IN_PROBLEM_WEBID] ?: "") }
+
+  suspend fun setSignInProblem(reason: String, webId: String) {
+    dataStore.edit {
+      it[SIGN_IN_PROBLEM] = reason
+      it[SIGN_IN_PROBLEM_WEBID] = webId
+    }
+  }
+
+  /** The WebID whose SCM approval or login is in progress, so a restart can retry the request. */
+  public fun getWaitingForScm(): Flow<String> = dataStore.data.map { it[WAITING_FOR_SCM_WEBID] ?: "" }
+
+  suspend fun setWaitingForScm(webId: String) {
+    dataStore.edit { it[WAITING_FOR_SCM_WEBID] = webId }
+  }
+
   suspend fun clearAuth() {
     dataStore.edit {
       it[ACCESS_TOKEN] = ""
@@ -103,6 +146,8 @@ public class AuthTokenStore(
       it[WEB_ID] = ""
       it[SIGNER] = ""
       it[TOKEN_EXPIRES_AT] = 0L
+      it[TOKEN_RECEIVED_AT] = 0L
+      it[AUTH_SOURCE] = ""
     }
   }
 
@@ -132,5 +177,19 @@ public class AuthTokenStore(
     public val SIGNER: Key<String> = stringPreferencesKey("signer")
 
     public val SUMMARY_TEXT: Key<String> = stringPreferencesKey("summary_text")
+
+    public val AUTH_SOURCE: Key<String> = stringPreferencesKey("auth_source")
+
+    public val TOKEN_RECEIVED_AT = longPreferencesKey("token_received_at")
+
+    public val SIGN_IN_PROBLEM: Key<String> = stringPreferencesKey("sign_in_problem")
+
+    public val SIGN_IN_PROBLEM_WEBID: Key<String> = stringPreferencesKey("sign_in_problem_webid")
+
+    public val WAITING_FOR_SCM_WEBID: Key<String> = stringPreferencesKey("waiting_for_scm_webid")
+
+    public const val AUTH_SOURCE_SCM: String = "scm"
+
+    public const val AUTH_SOURCE_BROWSER: String = "browser"
   }
 }

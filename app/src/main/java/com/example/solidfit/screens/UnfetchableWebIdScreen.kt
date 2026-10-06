@@ -27,10 +27,10 @@ import androidx.compose.ui.unit.sp
 import com.example.solidfit.R
 import com.example.solidfit.StartButton
 import com.example.solidfit.getUnsafeOkHttpClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.json.JSONException
 import org.json.JSONObject
 import net.openid.appauth.CodeVerifierUtil
 import org.aesirlab.mylibrary.buildAuthorizationUrl
@@ -72,47 +72,48 @@ fun UnfetchableWebIdScreen(
         val context = LocalContext.current
         StartButton(text = "Fetch OIDC Config") {
             val client = getUnsafeOkHttpClient()
-            val redirectUris = listOf("app://www.solid-oidc.com/callback")
+            val redirectUris = listOf("com.example.solidfit://auth/callback")
             CoroutineScope(Dispatchers.IO).launch {
+              try {
 
-                val configRequest = buildConfigRequest(solidProvider)
-                val configResponse = client.newCall(configRequest).execute()
+                  val configRequest = buildConfigRequest(solidProvider)
+                  val configResponse = client.newCall(configRequest).execute()
 
-                val responseBody = configResponse.body!!.string()
-                val configJSON = JSONObject(responseBody)
+                  val responseBody = configResponse.body!!.string()
+                  val configJSON = JSONObject(responseBody)
 
-                val registrationEndpoint = configJSON.getString("registration_endpoint")
-                val tokenEndpoint = configJSON.getString("token_endpoint")
-                val authUrl = configJSON.getString("authorization_endpoint")
+                  val registrationEndpoint = configJSON.getString("registration_endpoint")
+                  val tokenEndpoint = configJSON.getString("token_endpoint")
+                  val authUrl = configJSON.getString("authorization_endpoint")
 
-                tokenStore.setTokenUri(tokenEndpoint)
+                  tokenStore.setTokenUri(tokenEndpoint)
 
-                val jsonBody = buildRegistrationJSONBody(appTitle, redirectUris)
-                val registrationRequest = buildRegistrationRequest(registrationEndpoint, jsonBody)
-                val registrationResponse = client.newCall(registrationRequest).execute()
-                val registrationString = registrationResponse.body!!.string()
+                  val jsonBody = buildRegistrationJSONBody(appTitle, redirectUris)
+                  val registrationRequest = buildRegistrationRequest(registrationEndpoint, jsonBody)
+                  val registrationResponse = client.newCall(registrationRequest).execute()
+                  val registrationString = registrationResponse.body!!.string()
 
-                val registrationJSON = JSONObject(registrationString)
-                val clientId = registrationJSON.getString("client_id")
-                var clientSecret: String? = null
-                try {
-                    clientSecret = registrationJSON.getString("client_secret")
-                    tokenStore.setClientSecret(clientSecret)
+                  val registrationJSON = JSONObject(registrationString)
+                  val clientId = registrationJSON.getString("client_id")
+                  // Always overwrite, so a secret from an earlier registration is never sent with this client_id
+                  val clientSecret = registrationJSON.optString("client_secret").takeIf { it.isNotBlank() }
+                  tokenStore.setClientSecret(clientSecret ?: "")
+                  tokenStore.setClientId(clientId)
 
-                } catch (e: JSONException) {
-                    Log.d("JSONException", "no client_secret returned")
-                }
+                  val codeVerifier = CodeVerifierUtil.generateRandomCodeVerifier()
+                  val codeVerifierChallenge = CodeVerifierUtil.deriveCodeVerifierChallenge(codeVerifier)
 
-                tokenStore.setClientId(clientId)
+                  tokenStore.setCodeVerifier(codeVerifier)
 
-                val codeVerifier = CodeVerifierUtil.generateRandomCodeVerifier()
-                val codeVerifierChallenge = CodeVerifierUtil.deriveCodeVerifierChallenge(codeVerifier)
-
-                tokenStore.setCodeVerifier(codeVerifier)
-
-                val authorizationUrl = buildAuthorizationUrl(authUrl, clientId, codeVerifierChallenge, redirectUris[0], clientSecret)
-                val sendUri = Uri.parse(authorizationUrl.toString())
-                context.startActivity(Intent(Intent.ACTION_VIEW, sendUri))
+                  val authorizationUrl = buildAuthorizationUrl(authUrl, clientId, codeVerifierChallenge, redirectUris[0], clientSecret)
+                  val sendUri = Uri.parse(authorizationUrl.toString())
+                  context.startActivity(Intent(Intent.ACTION_VIEW, sendUri))
+              } catch (e: CancellationException) {
+                throw e
+              } catch (e: Exception) {
+                Log.e("UnfetchableWebIdScreen", "Sign-in setup failed", e)
+                renderError(e.message ?: "Sign-in failed. Please try again.")
+              }
             }
         }
     }

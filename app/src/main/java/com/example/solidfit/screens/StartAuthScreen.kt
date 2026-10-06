@@ -28,11 +28,11 @@ import com.example.solidfit.R
 import com.example.solidfit.StartButton
 import com.example.solidfit.getUnsafeOkHttpClient
 import com.example.solidfit.okHttpRequest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.Response
-import org.json.JSONException
 import org.json.JSONObject
 import net.openid.appauth.CodeVerifierUtil
 import org.aesirlab.mylibrary.buildAuthorizationUrl
@@ -56,7 +56,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
-//import com.example.solidfit.data.RecentWebIdStore
+import com.example.solidfit.data.RecentWebIdStore
 
 
 @Composable
@@ -74,6 +74,9 @@ fun StartAuthScreen(
         var webId by rememberSaveable {
             mutableStateOf("")
         }
+        // Ignore repeated taps while a registration is running, so a second registration
+        // can't overwrite the stored client mid-flow (the token exchange then fails with invalid_client).
+        var authInFlight by remember { mutableStateOf(false) }
 
         Image(
             painter = painterResource(id = R.drawable.exercise_black_46dp),
@@ -91,45 +94,48 @@ fun StartAuthScreen(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         )
         val context = LocalContext.current
-//        val recentStore = remember { RecentWebIdStore(context.applicationContext) }
-//        val recentWebIds by recentStore.recentWebIds.collectAsState(initial = emptyList())
+        val recentStore = remember { RecentWebIdStore(context.applicationContext) }
+        val recentWebIds by recentStore.recentWebIds.collectAsState(initial = emptyList())
 
-//        if (recentWebIds.isNotEmpty()) {
-//            Column(modifier = Modifier.fillMaxWidth(0.85f)) {
-//                Row(
-//                    modifier = Modifier.fillMaxWidth(),
-//                    horizontalArrangement = Arrangement.SpaceBetween,
-//                    verticalAlignment = Alignment.CenterVertically
-//                ) {
-//                    Text(text = "Recent WebIDs", fontWeight = FontWeight.Medium)
-//                    TextButton(onClick = {
-//                        CoroutineScope(Dispatchers.IO).launch { recentStore.clear() }
-//                    }) {
-//                        Text("Clear")
-//                    }
-//                }
-//
-//                Spacer(Modifier.height(6.dp))
-//
-//                LazyColumn (modifier = Modifier.heightIn(max = 180.dp)) {
-//                    items(recentWebIds) { id ->
-//                        AssistChip(
-//                            onClick = { webId = id },
-//                            label = { Text(id) },
-//                            modifier = Modifier.padding(bottom = 6.dp)
-//                        )
-//                    }
-//                }
-//            }
-//        }
+        if (recentWebIds.isNotEmpty()) {
+            Column(modifier = Modifier.fillMaxWidth(0.85f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Recent WebIDs", fontWeight = FontWeight.Medium)
+                    TextButton(onClick = {
+                        CoroutineScope(Dispatchers.IO).launch { recentStore.clear() }
+                    }) {
+                        Text("Clear")
+                    }
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                LazyColumn (modifier = Modifier.heightIn(max = 180.dp)) {
+                    items(recentWebIds) { id ->
+                        AssistChip(
+                            onClick = { webId = id },
+                            label = { Text(id) },
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                    }
+                }
+            }
+        }
         StartButton(text = "Start") {
+            if (authInFlight) return@StartButton
+            authInFlight = true
 
-            val redirectUris = listOf("app://www.solid-oidc.com/callback")
+            val redirectUris = listOf("com.example.solidfit://auth/callback")
             CoroutineScope(Dispatchers.IO).launch {
+              try {
 
-//                try {
-//                    recentStore.add(webId)
-//                } catch (_: Exception) { }
+                try {
+                    recentStore.add(webId)
+                } catch (_: Exception) { }
 
                 val client = getUnsafeOkHttpClient()
                 tokenStore.setWebId(webId)
@@ -177,15 +183,11 @@ fun StartAuthScreen(
 
                 val registrationJSON = JSONObject(registrationString)
                 val clientId = registrationJSON.getString("client_id")
-                var clientSecret: String? = null
-                try {
-                    clientSecret = registrationJSON.getString("client_secret")
-                    tokenStore.setClientSecret(clientSecret)
-                } catch (e: JSONException) {
-                    Log.d("JSONException", "no client_secret returned")
-                }
-
+                // Always overwrite, so a secret from an earlier registration is never sent with this client_id
+                val clientSecret = registrationJSON.optString("client_secret").takeIf { it.isNotBlank() }
+                tokenStore.setClientSecret(clientSecret ?: "")
                 tokenStore.setClientId(clientId)
+                Log.d("StartAuthScreen", "Registered client_id=$clientId hasSecret=${clientSecret != null}")
 
                 val codeVerifier = CodeVerifierUtil.generateRandomCodeVerifier()
                 val codeVerifierChallenge = CodeVerifierUtil.deriveCodeVerifierChallenge(codeVerifier)
@@ -195,6 +197,14 @@ fun StartAuthScreen(
                 val authorizationUrl = buildAuthorizationUrl(authUrl, clientId, codeVerifierChallenge, redirectUris[0], clientSecret)
                 val sendUri = Uri.parse(authorizationUrl.toString())
                 context.startActivity(Intent(Intent.ACTION_VIEW, sendUri))
+              } catch (e: CancellationException) {
+                throw e
+              } catch (e: Exception) {
+                Log.e("StartAuthScreen", "Sign-in setup failed", e)
+                onInvalidInput(e.message ?: "Sign-in failed. Please try again.")
+              } finally {
+                authInFlight = false
+              }
             }
         }
     }
