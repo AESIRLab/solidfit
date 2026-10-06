@@ -43,7 +43,7 @@ import com.example.solidfit.data.AuthTokenStore
 import com.example.solidfit.tryRefreshTokens
 import kotlinx.coroutines.flow.firstOrNull
 import com.example.solidfit.data.RecentWebIdStore
-import com.google.firebase.perf.FirebasePerformance
+//import com.google.firebase.perf.FirebasePerformance
 import com.hp.hpl.jena.query.QueryExecutionFactory
 import com.hp.hpl.jena.query.QueryFactory
 import com.hp.hpl.jena.rdf.model.ModelFactory
@@ -192,14 +192,14 @@ class WorkoutItemViewModel(
     }
 
     fun fetchAllOnceForBenchmark() {
-        val trace = FirebasePerformance.getInstance().newTrace("solid_warm_fetch_trace")
-        trace.start()
+//        val trace = FirebasePerformance.getInstance().newTrace("solid_warm_fetch_trace")
+//        trace.start()
         viewModelScope.launch {
             try {
                 // Ensure we have a valid token and storage URI
                 if (!remoteDataSource.remoteAccessible()) {
                     Log.e("SolidPerf", "Solid remote is not accessible (missing token or WebID).")
-                    trace.stop()
+//                    trace.stop()
                     return@launch
                 }
 
@@ -209,7 +209,7 @@ class WorkoutItemViewModel(
                 Log.d("SolidPerf", "warm HEAD check — remote=$remoteLastModified local=$localLastModified")
                 if (remoteLastModified != null && remoteLastModified == localLastModified) {
                     Log.d("SolidPerf", "Pod unchanged (Last-Modified matches). Skipping full fetch.")
-                    trace.stop()
+//                    trace.stop()
                     return@launch
                 }
 
@@ -220,10 +220,10 @@ class WorkoutItemViewModel(
                 }
 
                 Log.d("SolidPerf", "Successfully fetched ${remoteList.size} workouts from Solid Pod.")
-                trace.stop()
+//                trace.stop()
             } catch (e: Exception) {
                 Log.e("SolidPerf", "Error fetching from Solid Pod", e)
-                trace.stop()
+//                trace.stop()
             }
         }
     }
@@ -354,10 +354,6 @@ class WorkoutItemViewModel(
 
 
     fun updateWebId(webId: String) {
-        runBlocking {
-            delay(20000)
-        }
-
         viewModelScope.launch {
             try {
                 repository.insertWebId(webId)
@@ -378,12 +374,12 @@ class WorkoutItemViewModel(
                         return@launch
                     }
 
-                    val fetchTrace = FirebasePerformance.getInstance().newTrace("solid_cold_fetch_trace_real")
-                    fetchTrace.start()
+//                    val fetchTrace = FirebasePerformance.getInstance().newTrace("solid_cold_fetch_trace_real")
+//                    fetchTrace.start()
                     // Fetch the absolute truth from the Pod
                     val remote = remoteDataSource.fetchRemoteItemList()
 
-                    fetchTrace.stop()
+//                    fetchTrace.stop()
 
                     if (remoteLastModified != null) {
                         repository.setLastModified(remoteLastModified)
@@ -420,8 +416,8 @@ class WorkoutItemViewModel(
     fun insert(item: WorkoutItem) {
         viewModelScope.launch(Dispatchers.IO) {
             // Create and start the trace exactly like the Firebase app
-            val trace = com.google.firebase.perf.FirebasePerformance.getInstance().newTrace("solid_workout_insert_trace")
-            trace.start()
+//            val trace = com.google.firebase.perf.FirebasePerformance.getInstance().newTrace("solid_workout_insert_trace")
+//            trace.start()
 
             try {
                 repository.insert(item)
@@ -469,7 +465,7 @@ class WorkoutItemViewModel(
             } catch (t: Throwable) {
                 Log.e("WorkoutViewModel", "Failed to insert and sync workout.", t)
             } finally {
-                trace.stop()
+//                trace.stop()
             }
         }
     }

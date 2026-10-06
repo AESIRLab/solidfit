@@ -51,15 +51,15 @@ import java.util.Date
 import java.util.Locale
 
 
-private val PageBg = Color(0xFF0E1110)              // matches your list screen dark background vibe
-private val CardBg = Color(0xFFFFFBF5)              // warm paper
+private val PageBg = Color(0xFF0E1110)
+private val CardBg = Color(0xFFFFFBF5)
 private val CardStroke = Color.Black.copy(alpha = 0.10f)
 
-private val TextPrimary = Color(0xFF1C1F24)          // charcoal
-private val TextSecondary = Color(0xFF4B5563)        // slate gray
-private val IconStrong = Color(0xFF374151)           // icon dark
+private val TextPrimary = Color(0xFF1C1F24)
+private val TextSecondary = Color(0xFF4B5563)
+private val IconStrong = Color(0xFF374151)
 
-private val ChipBg = Color(0xFFF0E7DA)               // warm muted surface
+private val ChipBg = Color(0xFFF0E7DA)
 private val ChipStroke = Color.Black.copy(alpha = 0.08f)
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")

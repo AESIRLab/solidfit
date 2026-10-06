@@ -365,7 +365,7 @@ private fun CredentialManagerLoginScreen(
                     }
                 }
             ) {
-                Text("1")
+                Text(webId)
             }
         }
     }

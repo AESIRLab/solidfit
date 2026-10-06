@@ -313,14 +313,6 @@ fun UpdateWorkouts(
 
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(onClick = { viewModel.fetchAllOnceForBenchmark() }) {
-                            Text("Fetch All (RTDB)")
-                        }
-                    }
-
                     Spacer(modifier = Modifier.height(12.dp))
 
                     if (isReady) {

@@ -61,6 +61,40 @@ class FirebasePerformanceUITest {
     }
 
     @Test
+    fun demo() {
+        // Let the app settle and load data first
+        composeTestRule.waitForIdle()
+        Thread.sleep(10000)
+
+
+        composeTestRule.onNodeWithContentDescription("Add workout").performClick()
+        composeTestRule.waitForIdle()
+
+        // Added the $index variable so each workout has a unique name (e.g., "Test Cardio 1", "Test Cardio 2")
+        composeTestRule.onNodeWithText("Title (optional)").performTextInput("Example Cardio")
+        composeTestRule.onNodeWithText("Notes (optional)").performTextInput("Example Note")
+
+        composeTestRule.onNodeWithText("New exercise name").performTextInput("Example exercise")
+        composeTestRule.onNodeWithText("Add").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Reps").performTextInput("15")
+        composeTestRule.onNodeWithText("Add Set").performClick()
+
+        // Wait for the set to be added so the Save button becomes enabled
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Stop & Save").performClick()
+
+        // Wait for the navigation back to the WorkoutList to finish before starting the next loop
+        composeTestRule.waitForIdle()
+
+        // --- 3. THE FIREBASE UPLOAD WINDOW ---
+        // Pausing for 10 seconds to guarantee the background upload completes.
+        Thread.sleep(5000)
+    }
+
+    @Test
     fun generateTracesForFetchAll() {
         composeTestRule.waitForIdle()
         Thread.sleep(10000)

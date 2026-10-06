@@ -1,7 +1,7 @@
 [versions]
 accompanistThemeadapterMaterial3 = "0.34.0"
 activityKtxVersion = "1.9.3"
-agp = "8.5.2"
+agp = "8.9.2"
 androidx-health-connect = "1.1.0"
 androidxConnectClient = "1.2.0-alpha01"
 androidxJunit = "1.2.1"
