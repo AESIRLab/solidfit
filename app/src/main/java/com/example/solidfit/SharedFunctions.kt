@@ -36,6 +36,9 @@ import java.util.UUID
 
 private const val REFRESH_TAG = "TokenRefresh"
 
+/** Browser-login redirect; must match the VIEW intent-filter in AndroidManifest.xml. */
+const val OIDC_REDIRECT_URI = "com.example.solidfit://auth/callback"
+
 suspend fun discoverTokenEndpoint(issuer: String): String = withContext(Dispatchers.IO) {
     val base = issuer.trimEnd('/')
     val wellKnown = "$base/.well-known/openid-configuration"

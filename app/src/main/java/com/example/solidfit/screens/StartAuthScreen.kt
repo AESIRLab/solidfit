@@ -1,5 +1,6 @@
 package com.example.solidfit.screens
 
+import com.example.solidfit.OIDC_REDIRECT_URI
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -129,7 +130,7 @@ fun StartAuthScreen(
             if (authInFlight) return@StartButton
             authInFlight = true
 
-            val redirectUris = listOf("com.example.solidfit://auth/callback")
+            val redirectUris = listOf(OIDC_REDIRECT_URI)
             CoroutineScope(Dispatchers.IO).launch {
               try {
 

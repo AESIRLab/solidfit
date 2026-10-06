@@ -14,13 +14,15 @@ import com.zybooks.solidcredentialmanager.ITokenCallback
 import com.zybooks.solidcredentialmanager.IWebIdListCallback
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
 private const val TAG = "ScmClient"
-private const val SCM_PACKAGE = "com.zybooks.solidcredentialmanager"
+internal const val SCM_PACKAGE = "com.zybooks.solidcredentialmanager"
 private const val SCM_SERVICE = "com.zybooks.solidcredentialmanager.services.CredentialManagerService"
 private const val CONNECT_TIMEOUT_MS = 5_000L
 private const val REQUEST_TIMEOUT_MS = 30_000L
@@ -29,8 +31,13 @@ private const val SUPPORTED_REPLY_VERSION = 1
 /** The Solid Credential Manager's answer to a token request (contract version 1). */
 sealed interface ScmReply {
     data class Granted(val webId: String, val accessToken: String, val expiresAt: Long, val dpopKey: String) : ScmReply
-    data class ConsentRequired(val webId: String, val action: PendingIntent?) : ScmReply
-    data class LoginRequired(val webId: String, val action: PendingIntent?) : ScmReply
+    /** The user has to act in the SCM (approve, or log in) by launching [action]. */
+    sealed interface NeedsUser : ScmReply {
+        val webId: String
+        val action: PendingIntent?
+    }
+    data class ConsentRequired(override val webId: String, override val action: PendingIntent?) : NeedsUser
+    data class LoginRequired(override val webId: String, override val action: PendingIntent?) : NeedsUser
     data object UnknownWebId : ScmReply
     data object Denied : ScmReply
     data object TransientError : ScmReply
@@ -69,14 +76,13 @@ sealed interface ScmReply {
 }
 
 /**
- * Ask the SCM for a new token when less than min(2 minutes, a sixth of the token's lifetime)
- * remains. That is always below the SCM's own refresh threshold (min(5 min, a third)), so the SCM
- * refreshes before answering and the two can't loop.
+ * How long before expiry an SCM session asks for a new token: min(2 minutes, a sixth of the
+ * token's lifetime). That is always below the SCM's own refresh threshold (min(5 min, a third)),
+ * so the SCM refreshes before answering and the two can't loop.
  */
-fun needsScmToken(expiresAt: Long, receivedAt: Long, now: Long): Boolean {
+fun scmRefreshLeadMs(expiresAt: Long, receivedAt: Long): Long {
     val lifetime = (expiresAt - receivedAt).coerceAtLeast(0L)
-    val threshold = minOf(2 * 60_000L, lifetime / 6)
-    return expiresAt - now < threshold
+    return minOf(2 * 60_000L, lifetime / 6)
 }
 
 /** Collapses concurrent requests for the same WebID into one call to [send]. */
@@ -95,7 +101,8 @@ class SingleFlightRequests(private val send: suspend (webId: String) -> ScmReply
         val result = try {
             send(webId)
         } catch (e: CancellationException) {
-            lock.withLock { inFlight.remove(webId) }
+            // Clean up even though this coroutine is cancelled, or later callers would wait on a dead request.
+            withContext(NonCancellable) { lock.withLock { inFlight.remove(webId) } }
             mine.cancel(e)
             throw e
         } catch (e: Exception) {

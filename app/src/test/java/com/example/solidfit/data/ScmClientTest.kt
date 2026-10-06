@@ -46,13 +46,12 @@ class ScmClientTest {
 
     @Test
     fun scmSessionAsksForATokenOnlyNearExpiry() {
-        val now = 10_000_000L
-        val receivedAt = now - 50 * minute
-        assertTrue(needsScmToken(expiresAt = now + 1 * minute, receivedAt = receivedAt, now = now))
-        assertFalse(needsScmToken(expiresAt = now + 10 * minute, receivedAt = receivedAt, now = now))
-        // A 5-minute token: ask when under 50 s (a sixth), never more often.
-        assertFalse(needsScmToken(expiresAt = now + 60_000L, receivedAt = now - 240_000L, now = now))
-        assertTrue(needsScmToken(expiresAt = now + 40_000L, receivedAt = now - 260_000L, now = now))
+        // An hour-long token: ask in its last two minutes.
+        assertEquals(2 * minute, scmRefreshLeadMs(expiresAt = 60 * minute, receivedAt = 0L))
+        // A 5-minute token: ask in its last 50 s (a sixth), never more often.
+        assertEquals(50_000L, scmRefreshLeadMs(expiresAt = 300_000L, receivedAt = 0L))
+        // Nonsense times never produce a negative lead.
+        assertEquals(0L, scmRefreshLeadMs(expiresAt = 0L, receivedAt = 10L))
     }
 
     @Test

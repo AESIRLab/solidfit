@@ -159,7 +159,7 @@ fun Authorization(
         // SCREEN: Authentication complete
         composable(
             route = SolidAuthFlowScreen.AuthCompleteScreen.name,
-            deepLinks = listOf(navDeepLink { uriPattern = "com.example.solidfit://auth/callback" })
+            deepLinks = listOf(navDeepLink { uriPattern = OIDC_REDIRECT_URI })
         ) {
             AuthCompleteScreen(
                 tokenStore = tokenStore,

@@ -34,13 +34,13 @@ import androidx.core.app.ActivityOptionsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.example.solidfit.data.AuthTokenStore
+import com.example.solidfit.data.SCM_PACKAGE
 import com.example.solidfit.data.ScmClient
 import com.example.solidfit.data.ScmReply
 import com.example.solidfit.data.SignInProblem
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-private const val SCM_PACKAGE = "com.zybooks.solidcredentialmanager"
 private const val SCM_EXTRA_WEBID = "com.zybooks.solidcredentialmanager.extra.WEBID"
 /** The SCM approval screen's result code for "denied" (Activity.RESULT_FIRST_USER). */
 private const val RESULT_DENIED = Activity.RESULT_FIRST_USER
@@ -113,8 +113,8 @@ fun ScmSignInScreen(
                     tokenStore.saveScmSession(reply.webId, reply.accessToken, reply.dpopKey, reply.expiresAt, System.currentTimeMillis())
                     onSignedIn()
                 }
-                is ScmReply.ConsentRequired, is ScmReply.LoginRequired -> {
-                    val action = (reply as? ScmReply.ConsentRequired)?.action ?: (reply as ScmReply.LoginRequired).action
+                is ScmReply.NeedsUser -> {
+                    val action = reply.action
                     pendingProblem = if (reply is ScmReply.LoginRequired) SignInProblem.NEEDS_LOGIN else SignInProblem.ACCESS_DENIED
                     if (action == null) {
                         state = ScmSignInState.Failed("The Credential Manager didn't send its approval screen.", webId)

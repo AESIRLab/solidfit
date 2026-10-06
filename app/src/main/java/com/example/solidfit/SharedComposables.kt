@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.solidfit.data.AuthTokenStore
+import com.example.solidfit.data.scmRefreshLeadMs
 import androidx.compose.runtime.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -32,8 +33,7 @@ fun StartButton(text: String, onClick: () -> Unit) {
  */
 suspend fun refreshLeadMs(tokenStore: AuthTokenStore): Long {
     if (tokenStore.getAuthSource().first() != AuthTokenStore.AUTH_SOURCE_SCM) return 60_000L
-    val lifetime = (tokenStore.getTokenExpiresAt().first() - tokenStore.getTokenReceivedAt().first()).coerceAtLeast(0L)
-    return minOf(2 * 60_000L, lifetime / 6)
+    return scmRefreshLeadMs(tokenStore.getTokenExpiresAt().first(), tokenStore.getTokenReceivedAt().first())
 }
 
 @Composable

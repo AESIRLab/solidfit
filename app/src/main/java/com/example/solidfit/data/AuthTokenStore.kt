@@ -180,7 +180,7 @@ public class AuthTokenStore(
 
     public val AUTH_SOURCE: Key<String> = stringPreferencesKey("auth_source")
 
-    public val TOKEN_RECEIVED_AT = longPreferencesKey("token_received_at")
+    public val TOKEN_RECEIVED_AT: Key<Long> = longPreferencesKey("token_received_at")
 
     public val SIGN_IN_PROBLEM: Key<String> = stringPreferencesKey("sign_in_problem")
 
