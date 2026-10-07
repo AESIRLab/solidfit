@@ -107,4 +107,21 @@ class ScmClientTest {
         assertEquals(List(3) { ScmReply.TransientError }, callers.awaitAll())
         assertEquals(1, calls)
     }
+
+    @Test
+    fun cancellingTheFirstCallerGivesJoinedCallersARetryableReply() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val requests = SingleFlightRequests {
+            gate.await()
+            ScmReply.Denied
+        }
+
+        val first = async { requests.request(webId) }
+        testScheduler.runCurrent()
+        val joined = async { requests.request(webId) }
+        testScheduler.runCurrent()
+        first.cancel()
+
+        assertEquals(ScmReply.TransientError, joined.await())
+    }
 }

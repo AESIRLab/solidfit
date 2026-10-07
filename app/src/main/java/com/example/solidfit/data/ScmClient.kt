@@ -103,7 +103,8 @@ class SingleFlightRequests(private val send: suspend (webId: String) -> ScmReply
         } catch (e: CancellationException) {
             // Clean up even though this coroutine is cancelled, or later callers would wait on a dead request.
             withContext(NonCancellable) { lock.withLock { inFlight.remove(webId) } }
-            mine.cancel(e)
+            // Callers that joined this request were not cancelled themselves: give them a retryable reply.
+            mine.complete(ScmReply.TransientError)
             throw e
         } catch (e: Exception) {
             ScmReply.TransientError
